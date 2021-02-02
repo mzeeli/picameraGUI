@@ -1,6 +1,10 @@
 import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
+import threading
+import cv2
+
+from motCamera import MOTCamera
 from datetime import datetime
 from PIL import ImageTk, Image
 
@@ -14,13 +18,14 @@ def resizeImage(imgPath, h, w):
 
 
 class PiCameraGUI(tk.Frame):
-    def __init__(self, master, saveImgDir=r".\saved_images", debug=False):
+    def __init__(self, master, output=r"./saved_images", debug=False):
         self.master = master
+        self.output = output
         self.debug = debug
         self.width = 800  # Set main window width
         self.mHeight = 600  # Set main window height
-        self.defaultFont = 'Courier'  # Default font style, but size changes
-        self.saveImageDir = saveImgDir
+        self.defaultFont = 'Courier'  # Default font style
+        self.cam1 = MOTCamera()
         tk.Frame.__init__(self, master)
 
         self.mainDisplay = tk.Frame(master=self.master, height=self.mHeight, width=self.width,
@@ -32,8 +37,8 @@ class PiCameraGUI(tk.Frame):
         self.createNavigationBtn()
 
     def createNavigationBtn(self):
-        btnHeight = 80
-        btnWidth = 150
+        btnHeight = 70
+        btnWidth = 160
 
         btnFonts = tkFont.Font(family=self.defaultFont, size=15)
 
@@ -42,15 +47,21 @@ class PiCameraGUI(tk.Frame):
 
         alignmentBtn = tk.Button(navigationFrame, text='Alignment', font=btnFonts,
                                  command=self.showAlignmentWin)
-        alignmentBtn.place(x=1, y=1, height=btnHeight, width=btnWidth)
+        alignmentBtn.place(x=0, y=0, height=btnHeight, width=btnWidth)
 
         analysisBtn = tk.Button(navigationFrame, text='Analysis', font=btnFonts,
                                 command=self.showAnalysisWin)
-        analysisBtn.place(x=btnWidth+1, y=1, height=btnHeight, width=btnWidth)
+        analysisBtn.place(x=btnWidth, y=0, height=btnHeight, width=btnWidth)
 
         cameraBtn = tk.Button(navigationFrame, text='Camera View', font=btnFonts,
                               command=self.showCameraWin)
-        cameraBtn.place(x=btnWidth*2+1, y=1, height=btnHeight, width=btnWidth)
+        cameraBtn.place(x=btnWidth*2, y=0, height=btnHeight, width=btnWidth)
+        
+        viewBtn = tk.Button(navigationFrame, text='3D View', font=btnFonts)
+        viewBtn.place(x=btnWidth*3, y=0, height=btnHeight, width=btnWidth)
+        
+        logBtn = tk.Button(navigationFrame, text='Log', font=btnFonts)
+        logBtn.place(x=btnWidth*4, y=0, height=btnHeight, width=btnWidth)
 
         navigationFrame.pack()
 
@@ -60,7 +71,7 @@ class PiCameraGUI(tk.Frame):
         # Create right side information panel #
         coordinatesFrame = tk.Frame(self.mainDisplay, height=570, width=225,
                                     highlightbackground="black", highlightthicknes=1)
-        coordinatesFrame.place(x=570, y=12)
+        coordinatesFrame.place(x=570, y=11)
 
         motLblFont = tkFont.Font(family=self.defaultFont, size=20)
         tk.Label(coordinatesFrame, text='MOT Position', font=motLblFont)\
@@ -129,55 +140,88 @@ class PiCameraGUI(tk.Frame):
 
     def showCameraWin(self):
         self.clearMainDisplay()
+        # Main camera Displays #
+        camDispHeight = 272;
+        camDispWidth = 608;
 
-        camDispHeight = 260;
-        camDispWidth = 600;
-
-        img1Path = r'./assets/img1.jpg'
+        #img1Path = r'./assets/img1.jpg'
         img2Path = r'./assets/img2.jpg'
-
-        img1 = resizeImage(img1Path, camDispHeight, camDispWidth)
+        #img1 = resizeImage(img1Path, camDispHeight, camDispWidth)
         img2 = resizeImage(img2Path, camDispHeight, camDispWidth)
 
-        cam1 = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
-        cam1.image = img1
-        cam1.configure(image=img1)
-        cam1.place(x=40, y=25)
+        cam1Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
+        threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start()
+        cam1Lbl.place(x=40, y=25)
 
-        cam2 = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
-        cam2.image = img2
-        cam2.configure(image=img2)
-        cam2.place(x=40, y=300)
+        cam2Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
+        cam2Lbl.image = img2
+        cam2Lbl.configure(image=img2)
+        cam2Lbl.place(x=40, y=300)
 
+        ## Camera Labels ##
+        btnRelx = 0.91
+        
         camFont = tkFont.Font(family=self.defaultFont, size=13)
         tk.Label(self.mainDisplay, text='cam0', font=camFont, bg='gray83')\
-            .place(x=41, y=31)
+            .place(x=41, y=26)
         tk.Label(self.mainDisplay, text='cam1', font=camFont, bg='gray83')\
             .place(x=41, y=301)
 
+        ## Video Button ##
+        vidImgPath = r'./assets/vid2.png'
+        vidImg = resizeImage(vidImgPath, 53, 57)
+        vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, text="Show Vid Stream",
+                           command=lambda : threading.Thread(target= lambda : self.cam1.showVid(608,464)).start())
+        vidBtn.image = vidImg
+        vidBtn.configure(image=vidImg)
+        vidBtn.place(relx=btnRelx, y=120, anchor='center')
+        tk.Label(self.mainDisplay, text='Show Video')\
+            .place(relx=btnRelx, y=165, anchor='center')
 
-        cameraImgPath = r'./assets/Capture.jpg'
-        camImg = ImageTk.PhotoImage(Image.open(cameraImgPath))
+        ## Camera Button ##
+        snapImgPath = r'./assets/snap2.png'
+        snapImg = resizeImage(snapImgPath, 53, 57)
+        snapBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE,
+                        command=lambda : threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start())
+        snapBtn.image = snapImg
+        snapBtn.configure(image=snapImg)
+        snapBtn.place(relx=btnRelx, y=285, anchor='center')
+        tk.Label(self.mainDisplay, text='Update Pictures')\
+            .place(relx=btnRelx, y=330, anchor='center')
+            
+        ## Save Button ##
+        saveImgPath = r'./assets/save3.png'
+        saveImg = resizeImage(saveImgPath, 53, 57)
+        saveBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE,
+                            command=self.saveImage)
+        saveBtn.image = saveImg
+        saveBtn.configure(image=saveImg)
+        saveBtn.place(relx=btnRelx, y=450, anchor='center')
+        tk.Label(self.mainDisplay, text='Save Images')\
+            .place(relx=btnRelx, y=495, anchor='center')
 
-        camBtn = tk.Button(self.mainDisplay, command=self.saveImage, relief=tk.GROOVE)
-        camBtn.image = camImg
-        camBtn.configure(image=camImg)
-        camBtn.place(relx=0.9, y=290, anchor='center')
-        tk.Label(self.mainDisplay, text='Save Image')\
-            .place(relx=0.9, y=335, anchor='center')
 
     def saveImage(self):
-        # Todo save image to some location
-        identifier = datetime.now().strftime("%Y%m%d_%H%M%S")  # save images as title YearMonthDay_HourMinutesSecond
-        print(identifier)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saveDir = f"{self.output}/{timestamp}.jpg"
+        cv2.imwrite(saveDir, self.cam1.img)
+        print(f"Image saved at {saveDir}")
+
 
     def clearMainDisplay(self):
         for widget in self.mainDisplay.winfo_children():
             widget.destroy()
+            
+    def onWinClose(self):
+        print("Exiting Application")
+        self.cam1.close()
+        self.master.destroy()
 
 
 if __name__ == "__main__":
     window = tk.Tk()
     window.title('PiCamera')
-    PiCameraGUI(window, debug=False).pack()
+    gui = PiCameraGUI(window, debug=False)
+    window.protocol("WM_DELETE_WINDOW", gui.onWinClose)
+    gui.pack()
     window.mainloop()
