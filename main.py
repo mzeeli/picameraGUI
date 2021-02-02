@@ -17,8 +17,8 @@ class PiCameraGUI(tk.Frame):
     def __init__(self, master, saveImgDir=r".\saved_images", debug=False):
         self.master = master
         self.debug = debug
-        self.width = 1280  # Set window width
-        self.mHeight = 640  # Set main window height
+        self.width = 800  # Set main window width
+        self.mHeight = 600  # Set main window height
         self.defaultFont = 'Courier'  # Default font style, but size changes
         self.saveImageDir = saveImgDir
         tk.Frame.__init__(self, master)
@@ -27,7 +27,7 @@ class PiCameraGUI(tk.Frame):
                                     highlightbackground="black", highlightthicknes=1)
         self.mainDisplay.pack()
 
-        self.showAlignmentWin()
+        self.showCameraWin()
 
         self.createNavigationBtn()
 
@@ -58,13 +58,13 @@ class PiCameraGUI(tk.Frame):
         self.clearMainDisplay()
 
         # Create right side information panel #
-        coordinatesFrame = tk.Frame(self.mainDisplay, height=610, width=320,
+        coordinatesFrame = tk.Frame(self.mainDisplay, height=570, width=225,
                                     highlightbackground="black", highlightthicknes=1)
-        coordinatesFrame.place(x=953, y=12)
+        coordinatesFrame.place(x=570, y=12)
 
         motLblFont = tkFont.Font(family=self.defaultFont, size=20)
         tk.Label(coordinatesFrame, text='MOT Position', font=motLblFont)\
-            .place(relx=0.5, rely=0.03, anchor='center')
+            .place(relx=0.5, rely=0.05, anchor='center')
 
         # Get position and number of atoms data
         # Todo get real atom cloud position
@@ -73,20 +73,20 @@ class PiCameraGUI(tk.Frame):
 
         # Display Data
         dataFont = tkFont.Font(family=self.defaultFont, size=20)
-        relXStart = 0.15
+        relYStart = 0.18
         relDist = 0.225  # increments in rely between parameters
         tk.Label(coordinatesFrame, text=f'x(nm)\n{positions[0]}', font=dataFont)\
-            .place(relx=0.5, rely=relXStart, anchor='center')
+            .place(relx=0.5, rely=relYStart, anchor='center')
         tk.Label(coordinatesFrame, text=f'y(nm)\n{positions[1]}', font=dataFont)\
-            .place(relx=0.5, rely=relXStart+relDist, anchor='center')
+            .place(relx=0.5, rely=relYStart + relDist, anchor='center')
         tk.Label(coordinatesFrame, text=f'z(nm)\n{positions[2]}', font=dataFont)\
-            .place(relx=0.5, rely=relXStart+relDist*2, anchor='center')
+            .place(relx=0.5, rely=relYStart + relDist * 2, anchor='center')
         tk.Label(coordinatesFrame, text=f'#Atoms\n{numAtoms}', font=dataFont)\
-            .place(relx=0.5, rely=relXStart+relDist*3, anchor='center')
+            .place(relx=0.5, rely=relYStart + relDist * 3, anchor='center')
 
         # Draw MOT on grid #
-        gHeight = 610  # Grid height
-        gWidth = 930  # Grid width
+        gHeight = 570  # Grid height
+        gWidth = 550  # Grid width
         alignmentGrid = tk.Canvas(self.mainDisplay, bg="gray60", height=gHeight, width=gWidth)
         alignmentGrid.place(x=15, y=10)
 
@@ -108,60 +108,63 @@ class PiCameraGUI(tk.Frame):
     def showAnalysisWin(self):
         self.clearMainDisplay()
 
-        lblFont = tkFont.Font(family=self.defaultFont, size=30)
-        dataFont = tkFont.Font(family=self.defaultFont, size=50)
+        lblFont = tkFont.Font(family=self.defaultFont, size=25)
+        dataFont = tkFont.Font(family=self.defaultFont, size=30)
 
         # Todo get real temperature and atom count
         temp = 3.2
         numAtoms = 101367  # Todo Should probably be a field instead
 
         # Display temperature data
-        tk.Label(self.mainDisplay, text=f'Temperature (K)', font=lblFont)\
-            .place(x=self.width*3/10, y=self.mHeight/2-75, anchor='center')
+        tk.Label(self.mainDisplay, text=f'Temperature (mK)', font=lblFont)\
+            .place(x=self.width*3/10, y=self.mHeight/2-30, anchor='center')
         tk.Label(self.mainDisplay, text=f'{temp}', font=dataFont)\
-            .place(x=self.width*3/10, y=self.mHeight/2+75, anchor='center')
+            .place(x=self.width*3/10, y=self.mHeight/2+30, anchor='center')
 
         # Display atom count data
         tk.Label(self.mainDisplay, text=f'#Atoms', font=lblFont)\
-            .place(x=self.width*7/10, y=self.mHeight/2-75, anchor='center')
+            .place(x=self.width*7/10, y=self.mHeight/2-30, anchor='center')
         tk.Label(self.mainDisplay, text=f'{numAtoms}', font=dataFont)\
-            .place(x=self.width*7/10, y=self.mHeight/2+75, anchor='center')
+            .place(x=self.width*7/10, y=self.mHeight/2+30, anchor='center')
 
     def showCameraWin(self):
         self.clearMainDisplay()
 
-        img1Path = r'.\assets\img1.jpg'
-        img2Path = r'.\assets\img2.jpg'
+        camDispHeight = 260;
+        camDispWidth = 600;
 
-        img1 = resizeImage(img1Path, 275, 1020)
-        img2 = resizeImage(img2Path, 275, 1020)
+        img1Path = r'./assets/img1.jpg'
+        img2Path = r'./assets/img2.jpg'
 
-        cam1 = tk.Label(self.mainDisplay, height=275, width=1020, bd=1, relief='solid')
+        img1 = resizeImage(img1Path, camDispHeight, camDispWidth)
+        img2 = resizeImage(img2Path, camDispHeight, camDispWidth)
+
+        cam1 = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
         cam1.image = img1
         cam1.configure(image=img1)
-        cam1.place(x=40, y=30)
+        cam1.place(x=40, y=25)
 
-        cam2 = tk.Label(self.mainDisplay, height=275, width=1020, bd=1, relief='solid')
+        cam2 = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
         cam2.image = img2
         cam2.configure(image=img2)
-        cam2.place(x=40, y=330)
+        cam2.place(x=40, y=300)
 
         camFont = tkFont.Font(family=self.defaultFont, size=13)
         tk.Label(self.mainDisplay, text='cam0', font=camFont, bg='gray83')\
             .place(x=41, y=31)
         tk.Label(self.mainDisplay, text='cam1', font=camFont, bg='gray83')\
-            .place(x=41, y=331)
+            .place(x=41, y=301)
 
 
-        cameraImgPath = r'.\assets\Capture.jpg'
+        cameraImgPath = r'./assets/Capture.jpg'
         camImg = ImageTk.PhotoImage(Image.open(cameraImgPath))
 
         camBtn = tk.Button(self.mainDisplay, command=self.saveImage, relief=tk.GROOVE)
         camBtn.image = camImg
         camBtn.configure(image=camImg)
-        camBtn.place(x=1125, y=290)
+        camBtn.place(relx=0.9, y=290, anchor='center')
         tk.Label(self.mainDisplay, text='Save Image')\
-            .place(x=1131, y=350)
+            .place(relx=0.9, y=335, anchor='center')
 
     def saveImage(self):
         # Todo save image to some location
