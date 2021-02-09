@@ -53,7 +53,7 @@ def create3DView(debug=False):
     h, w = topMask.shape
     sideMask = cv2.resize(sideMask, (w, h))
     sideTarget = cv2.resize(sideTarget, (w, h))
-
+    print(sideMask.shape)
     # create 3D points
     points = matchPoints(topMask, sideMask)
     everyNthPoint = 200
@@ -111,7 +111,6 @@ def create3DView(debug=False):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
 def subtractBackground(imgBack, imgTarget):
     """
     imgBack (np.array: uint8) = Array image of background
@@ -123,12 +122,10 @@ def subtractBackground(imgBack, imgTarget):
 
     return noBackground
 
-
 def createMask(img):
     img = cv2.GaussianBlur(img, (5, 5), cv2.BORDER_DEFAULT)
     ret, mask = cv2.threshold(img, 15, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return mask
-
 
 def matchPoints(mask1, mask2):
     """
@@ -155,6 +152,43 @@ def matchPoints(mask1, mask2):
 
     return points[1:, :]
 
+def getImageCenter(img):
+    """
+
+    :param img: image of MOT
+
+    :return: relative distance to fiber in pixels
+    """
+
+    cnts = []
+    for sig in [40, 80, 120, 160, 200, 240]:
+        contour = getContours(sig, img)
+        cnts.append(contour)
+
+    # Get center of mass based on outermost contour
+    for c in cnts[0]:
+        m = cv2.moments(c)
+        cX = int(m["m10"] / m["m00"])
+        cY = int(m["m01"] / m["m00"])
+
+        cv2.circle(img, (cX, cY), 3, 0, -1)
+
+    cv2.imshow("img", img)
+    cv2.waitKey(0)
+    return 0
+
+def getContours(limit, img):
+    smoothedImg = cv2.GaussianBlur(img, (5, 5), cv2.BORDER_DEFAULT)
+
+    ret, thresh = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
+    contours, hierarchy = cv2.findContours(thresh, 1, 2)
+    cv2.drawContours(img, contours, -1, 0, 1)
+    return contours
+
 
 if __name__ == "__main__":
-    create3DView(debug=True)
+    # create3DView(debug=True)
+    imgPath = r"./saved_images/mot image.png"
+    image = cv2.imread(imgPath, 0)
+    dist = getImageCenter(image)
+    print(dist)
