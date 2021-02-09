@@ -7,6 +7,7 @@ import tkinter.font as tkFont
 import numpy as np
 import threading
 import cv2
+import imageAnalysis as imgAna
 
 class PiCameraGUI(tk.Frame):
     def __init__(self, master, output=r"./saved_images", debug=False):
@@ -16,8 +17,8 @@ class PiCameraGUI(tk.Frame):
         self.mWidth = 800  # Set main window width
         self.mHeight = 600  # Set main window height
         self.defaultFont = 'Courier'  # Default font style
-        self.cam0 = MOTCamera(1, grayscale=True)  # Pi compute module rease cam0 port as numerical value 1
-        self.cam1 = MOTCamera(0, grayscale=True)  # Pi compute module rease cam1 port as numerical value 0
+        self.cam0 = MOTCamera(1, grayscale=True)  # Pi compute module assigns cam0 port as numerical value 1
+        self.cam1 = MOTCamera(0, grayscale=True)  # Pi compute module assigns cam1 port as numerical value 0
         
         tk.Frame.__init__(self, master)
         
@@ -33,10 +34,9 @@ class PiCameraGUI(tk.Frame):
         self.createNavigationBtn()
 
     def createNavigationBtn(self):
-        '''
-        Creates + displays the bottom navigation buttons and assigns 
-        their respective window display functions
-        '''
+        """
+        Creates and displays the bottom navigation buttons and assigns their respective window display functions
+        """
         btnHeight = 70
         btnWidth = 160
 
@@ -64,10 +64,10 @@ class PiCameraGUI(tk.Frame):
         navigationFrame.pack()
 
     def showAlignmentWin(self):
-        '''
-        Creates widgets associated with the alignment window. 
+        """
+        Creates widgets associated with the alignment window.
         This window is used to see how the MOT is aligned compared to the fiber
-        '''
+        """
         self.clearMainDisplay()
 
         # Create right side information panel #
@@ -81,7 +81,12 @@ class PiCameraGUI(tk.Frame):
 
         # Get position and number of atoms data
         # Todo get real atom cloud position
-        positions = np.array([-12, -5, 10])
+
+        imgPath = r"./saved_images/mot image.png"
+        image = cv2.imread(imgPath, 0)
+        x1, y1, _ = imgAna.getMOTCenter(image)
+
+        positions = np.array([x1, -5, 10])
         numAtoms = 101367
 
         # Display Data
@@ -119,10 +124,10 @@ class PiCameraGUI(tk.Frame):
                                   fill='slate gray')
 
     def showAnalysisWin(self):
-        '''
-        Creates widgets associated with the Analysis window. 
+        """
+        Creates widgets associated with the Analysis window.
         This window is used to calculate temperature and #Atoms
-        '''
+        """
         self.clearMainDisplay()
 
         # Set fonts to be used in labels
@@ -146,30 +151,30 @@ class PiCameraGUI(tk.Frame):
             .place(x=self.mWidth*7/10, y=self.mHeight/2+30, anchor='center')
 
     def showCameraWin(self):
-        '''
-        Creates widgets associated with the Camera window. 
+        """
+        Creates widgets associated with the Camera window.
         This window is used to snap and save images from the camera and
         create the video view popout window
-        ''' 
+        """
         self.clearMainDisplay()
         
-        # Main camera Displays #
+        ## Main camera Displays ##
         camDispHeight = 272;
         camDispWidth = 608;
 
         cam0Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
         cam0Lbl.place(x=40, y=25)
-        threading.Thread(target=lambda : self.cam0.showImgOnLbl(cam0Lbl)).start() # Snap an image upon opening window
+        threading.Thread(target=lambda : self.cam0.showImgOnLbl(cam0Lbl)).start()  # Snap an image upon opening window
 
         cam1Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
         cam1Lbl.place(x=40, y=300)
-        threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start() # Snap an image upon opening window
+        threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start()  # Snap an image upon opening window
 
         ## Camera Labels ##
         btnRelx = 0.91
         distY = 60
-        btnH = 60;
-        btnW = 65;
+        btnH = 60
+        btnW = 65
 
         camFont = tkFont.Font(family=self.defaultFont, size=13)
         tk.Label(self.mainDisplay, text='cam0', font=camFont, bg='gray83')\
@@ -219,42 +224,42 @@ class PiCameraGUI(tk.Frame):
         # ~ tk.Label(self.mainDisplay, text='Show Vid 1').place(relx=btnRelx, y=567, anchor='center')
         
     def show3DWin(self):
-        '''
-        Creates widgets associated with the 3D window. 
+        """
+        Creates widgets associated with the 3D window.
         This window is used to show a 3D view of the MOT based on two-view
         geometry. Todo
-        ''' 
+        """
         self.clearMainDisplay()
         tk.Label(self.mainDisplay, text="Coming soon: matplotlib 3D view of structure")\
                 .place(relx=0.5, rely=0.5, anchor='center')
                 
     def showLogWin(self):
-        '''
-        Creates widgets associated with the Log window. 
+        """
+        Creates widgets associated with the Log window.
         This window is used to show main commands used in the past and
         system responses. Todo
-        ''' 
+        """
         self.clearMainDisplay()
         tk.Label(self.mainDisplay, text="Coming soon: log window")\
                 .place(relx=0.5, rely=0.5, anchor='center')
 
 
     def snapImages(self, cam0Lbl, cam1Lbl):
-        '''
+        """
         Snaps new images to the designated labels
         cam0Lbl (tk.Label): Label to display image of cam0
         cam1Lbl (tk.Label): Label to display image of cam1
-        '''
+        """
         
         threading.Thread(target=lambda : self.cam0.showImgOnLbl(cam0Lbl)).start()  
         threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start()  
 
     def saveImage(self):
-        '''
+        """
         Saves the last images snapped by the cameras. Grab both images as
         np.arrays and stack them veritcally. Finally saving them by their
         timestamp in the output folder.
-        '''
+        """
         # Create timestamp and file path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         savePath = f"{self.output}/{timestamp}.jpg"
@@ -268,18 +273,18 @@ class PiCameraGUI(tk.Frame):
         print(f"Image saved at {savePath}")
 
     def clearMainDisplay(self):
-        '''
-        Clears all widgets on the display to make room on the new window. 
+        """
+        Clears all widgets on the display to make room on the new window.
         Called at the start of every new window
-        '''
+        """
         for widget in self.mainDisplay.winfo_children():
             widget.destroy()
             
     def onWinClose(self):
-        '''
-        Callback for when the gui is closed, need to ensure the camera 
+        """
+        Callback for when the gui is closed, need to ensure the camera
         resources are released
-        '''
+        """
         print("Exiting Application")
         self.cam0.close()
         self.cam1.close()
@@ -287,22 +292,20 @@ class PiCameraGUI(tk.Frame):
         self.master.destroy()
 
 def resizeImage(imgPath, h, w):
-    '''
-    Maps image to the dimensions of h and w and then returns it as an 
+    """
+    Maps image to the dimensions of h and w and then returns it as an
     ImageTk.PhotoImage object to use in tkinter widgets
-    
-    Inputs
-    imgPath (str) = file path to image
-    h (int) = desired image height in pixels
-    w (int) = desired image width in pixels
-    
-    Output
-    img (ImageTk.PhotoImage) = image to use in tkinter widgets
-    '''
+    :param imgPath: file path to image
+    :param h: desired image height in pixels
+    :param w: desired image width in pixels
+    :return: image to use in tkinter widgets
+    """
+
     img = Image.open(imgPath)
     img = img.resize((w, h), Image.ANTIALIAS)
     img = ImageTk.PhotoImage(img)
     return img
+
 
 if __name__ == "__main__":
     window = tk.Tk()

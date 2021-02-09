@@ -2,12 +2,11 @@ import cv2
 import numpy as np
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 
 
 def create3DView(debug=False):
     """
+    Test function to create a 3D scene based on two-view geometry
     """
 
     # Top View #
@@ -113,6 +112,8 @@ def create3DView(debug=False):
 
 def subtractBackground(imgBack, imgTarget):
     """
+    Subtracts background from target image and returns the result
+
     imgBack (np.array: uint8) = Array image of background
     imgTarget (np.array: uint8) = Array image of target
     """
@@ -123,6 +124,11 @@ def subtractBackground(imgBack, imgTarget):
     return noBackground
 
 def createMask(img):
+    """
+    Creates a mask hard coded to 15 DN for a given image
+    :param img: image to create mask for
+    :return: Binary mask with max points set to 255
+    """
     img = cv2.GaussianBlur(img, (5, 5), cv2.BORDER_DEFAULT)
     ret, mask = cv2.threshold(img, 15, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return mask
@@ -152,43 +158,92 @@ def matchPoints(mask1, mask2):
 
     return points[1:, :]
 
-def getImageCenter(img):
+def getMOTCenter(ogImage):
     """
-
-    :param img: image of MOT
+    :param ogImage: original raw image of MOT
 
     :return: relative distance to fiber in pixels
     """
+    img = ogImage.copy()
+
+    # plt.hist(img.ravel(), 256, [0, 256]);
+    # plt.show()
+
+    # Dynamic contour band creation
+    upperBound = img.max() * 0.9
+    lowerBound = upperBound * 0.25
+    numContours = 6
+    contourBounds = np.linspace(lowerBound, upperBound, numContours)
+    print(contourBounds)
 
     cnts = []
-    for sig in [40, 80, 120, 160, 200, 240]:
-        contour = getContours(sig, img)
+    for sig in contourBounds:
+        contour = getContours(sig, img, draw=True)  # Also draws contours
         cnts.append(contour)
 
-    # Get center of mass based on outermost contour
-    for c in cnts[0]:
+
+    # Try to incorporate intensity by factoring in things
+    for c in cnts[-1]:
         m = cv2.moments(c)
         cX = int(m["m10"] / m["m00"])
         cY = int(m["m01"] / m["m00"])
 
-        cv2.circle(img, (cX, cY), 3, 0, -1)
 
-    cv2.imshow("img", img)
-    cv2.waitKey(0)
-    return 0
+    cv2.circle(img, (cX, cY), 3, 0, -1)
+    return cX, cY, img
 
-def getContours(limit, img):
-    smoothedImg = cv2.GaussianBlur(img, (5, 5), cv2.BORDER_DEFAULT)
+def getContours(limit, img, draw=False):
+    """
+    Given a grayscale threshold, finds contours of the image and returns them as a cv2.contours list. If draw is set to
+    true will draw contours on the original image
 
+    :param limit: Limit for threshold
+    :param img: source image
+    :param draw: (Bool) whether or not to draw the contours on the source image
+    :return: list of cv2 contours for the given threshold
+    """
+    smoothedImg = cv2.GaussianBlur(img, (7, 7), cv2.BORDER_DEFAULT)
     ret, thresh = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
-    contours, hierarchy = cv2.findContours(thresh, 1, 2)
-    cv2.drawContours(img, contours, -1, 0, 1)
+
+    # Updated versions of findContours removed one of the return parameters
+    if cv2.__version__ == '4.5.1':
+        contours, hierarchy = cv2.findContours(thresh, 1, 2)
+
+    else:  # Ignore first parameter for all other versions of opencv
+        _, contours, hierarchy = cv2.findContours(thresh, 1, 2)
+
+    if draw:
+        cv2.drawContours(img, contours, -1, 0, 1)
+        cv2.imshow("c", img)
+        cv2.waitKey(0)
+
     return contours
 
 
 if __name__ == "__main__":
     # create3DView(debug=True)
+    # imgPath = r"./saved_images/motTestImage.png"
+    imgPath = r"./saved_images/motTestImage_pantitaThesis.jpg"
     imgPath = r"./saved_images/mot image.png"
+
     image = cv2.imread(imgPath, 0)
-    dist = getImageCenter(image)
-    print(dist)
+    x, y, image = getMOTCenter(image)
+
+    # Create arbituary fiber and draw on picture
+    h, w = image.shape
+    fiberX = int(w/2)  # Assume fiber is in the middle of the image
+    fiberY = h - 50  # Assume fiber is 50 pixels above bottom border
+    cv2.rectangle(image, (fiberX-5, h), (fiberX+5, fiberY), 190, -1)
+
+    relx = x - fiberX
+    rely = fiberY - y
+    xPos = f"Rel_x: {relx} px"
+    yPos = f"Rel_y: {rely} px"
+
+    cv2.putText(image, xPos, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
+    cv2.putText(image, yPos, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
+
+    cv2.arrowedLine(image, (fiberX, fiberY), (x, y), 0, 1)
+
+    cv2.imshow("image", image)
+    cv2.waitKey(0)
