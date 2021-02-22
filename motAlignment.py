@@ -1,8 +1,13 @@
+"""
+Calculate mot position given images
+
+Last Updated: Winter, 2021
+Author: Michael Li
+"""
+
 import cv2
 import numpy as np
-
 import matplotlib.pyplot as plt
-
 
 def create3DView(debug=False):
     """
@@ -10,9 +15,11 @@ def create3DView(debug=False):
     """
 
     # Top View #
-    topBack = cv2.imread(r"./saved_images/20210202_213251.jpg", 0)  # Background photo in grayscale
-    topTarget = cv2.imread(r"./saved_images/20210202_213301.jpg", 0)  # Photo of Cs in grayscale
-    topView = subtractBackground(topBack, topTarget)
+    # Background photo in grayscale
+    topBack = cv2.imread(r"./saved_images/20210202_213251.jpg", 0)
+    # Photo of Cs in grayscale
+    topTarget = cv2.imread(r"./saved_images/20210202_213301.jpg", 0)
+    topView = cv2.subtract(topBack, topTarget)
 
     topMask = createMask(topView)
     topMask = cv2.rotate(topMask, cv2.ROTATE_90_CLOCKWISE)
@@ -28,9 +35,11 @@ def create3DView(debug=False):
     topTarget = topTarget[:, yCropMin:yCropMax]
 
     # Side View #
-    sideBack = cv2.imread(r"./saved_images/20210202_213648.jpg", 0)  # Background photo in grayscale
-    sideTarget = cv2.imread(r"./saved_images/20210202_213631.jpg", 0)  # Photo of Cs in grayscale
-    sideView = subtractBackground(sideBack, sideTarget)
+    # Background photo in grayscale
+    sideBack = cv2.imread(r"./saved_images/20210202_213648.jpg", 0)
+    # Photo of Cs in grayscale
+    sideTarget = cv2.imread(r"./saved_images/20210202_213631.jpg", 0)
+    sideView = cv2.subtract(sideBack, sideTarget)
 
     # cv2.imshow('target', sideTarget)
     # cv2.imshow('back', sideBack)
@@ -97,8 +106,8 @@ def create3DView(debug=False):
         cv2.namedWindow('Side Binary', cv2.WINDOW_NORMAL)
 
         scaling = 2.3
-        cv2.resizeWindow('Top No Background', int(w * scaling), int(h * scaling))
-        cv2.resizeWindow('Side No Background', int(w * scaling), int(h * scaling))
+        cv2.resizeWindow('Top No Background', int(w*scaling), int(h*scaling))
+        cv2.resizeWindow('Side No Background', int(w*scaling), int(h*scaling))
         cv2.resizeWindow('Top Binary', int(w * scaling), int(h * scaling))
         cv2.resizeWindow('Side Binary', int(w * scaling), int(h * scaling))
 
@@ -109,19 +118,6 @@ def create3DView(debug=False):
 
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-def subtractBackground(imgBack, imgTarget):
-    """
-    Subtracts background from target image and returns the result
-
-    imgBack (np.array: uint8) = Array image of background
-    imgTarget (np.array: uint8) = Array image of target
-    """
-    noBackground = imgTarget.astype(int) - imgBack.astype(int)
-    noBackground[noBackground < 0] = 0  # restrain uint8 values
-    noBackground = noBackground.astype(np.uint8)
-
-    return noBackground
 
 def createMask(img):
     """
@@ -135,14 +131,14 @@ def createMask(img):
 
 def matchPoints(mask1, mask2):
     """
-    Intakes two binary images of [0, 255] and creates an array of 3D points from them
+    Intakes two binary images of [0, 255] and creates an array of 3D points from
+    them based on two-view geometry
 
     :param mask1: Binary image mask of first view
     :param mask2:  Binary image mask of second view
 
     :return points: nx3 np.array of [x,y,z] points to plot in matplotlib
     """
-    # cv2.imshow("m1", mask2)
 
     mask1Coords = np.array(np.where(mask1 == 255))  # [xTop, yTop]
     mask2Coords = np.array(np.where(mask2 == 255))  # [xSide, zSide]
@@ -160,26 +156,35 @@ def matchPoints(mask1, mask2):
 
 def getMOTCenter(ogImage):
     """
+    Calculates the MOT center based on the innermost contour.
+    Contour boundaries are created dynamically based on image intensity.
+
+    Under normal circumstances will create 6 contours evenly spaced between
+    intensities: [image max intensity * 0.9, image max intensity * 0.25].
+
+    Returns centroid position of innermost contour and a copy of the ogImage
+    with contours drawn on it
+
     :param ogImage: original raw image of MOT
 
-    :return: relative distance to fiber in pixels
+    :return: x position of mot, y position of mot, contours drawn on a copy of
+            ogImage
     """
     img = ogImage.copy()
 
-    # plt.hist(img.ravel(), 256, [0, 256]);
-    # plt.show()
-
     # Dynamic contour band creation
     upperBound = img.max() * 0.9
-    lowerBound = upperBound * 0.25
+    lowerBound = img.max() * 0.25
     numContours = 6
     contourBounds = np.linspace(lowerBound, upperBound, numContours)
-    print(contourBounds)
+    # print(contourBounds)
 
     cnts = []
     for sig in contourBounds:
         contour = getContours(sig, img, draw=True)  # Also draws contours
-        cnts.append(contour)
+
+        if contour:  # If the contour list is not empty, add it
+            cnts.append(contour)
 
 
     # Try to incorporate intensity by factoring in things
@@ -189,24 +194,25 @@ def getMOTCenter(ogImage):
         cY = int(m["m01"] / m["m00"])
 
 
-    cv2.circle(img, (cX, cY), 3, 0, -1)
+    cv2.circle(img, (cX, cY), 1, 0, -1)
     return cX, cY, img
 
 def getContours(limit, img, draw=False):
     """
-    Given a grayscale threshold, finds contours of the image and returns them as a cv2.contours list. If draw is set to
-    true will draw contours on the original image
+    Given a grayscale threshold, finds contours of the image and returns them as
+    a cv2.contours list. draw == true will draw contours on the original image
 
-    :param limit: Limit for threshold
-    :param img: source image
+    :param limit: (int [0, 255]) Limit for threshold
+    :param img: (2D np.array) source image
     :param draw: (Bool) whether or not to draw the contours on the source image
+
     :return: list of cv2 contours for the given threshold
     """
     smoothedImg = cv2.GaussianBlur(img, (7, 7), cv2.BORDER_DEFAULT)
     ret, thresh = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
 
     # Updated versions of findContours removed one of the return parameters
-    if cv2.__version__ == '4.5.1':
+    if int(cv2.__version__[0]) > 3:
         contours, hierarchy = cv2.findContours(thresh, 1, 2)
 
     else:  # Ignore first parameter for all other versions of opencv
@@ -214,36 +220,79 @@ def getContours(limit, img, draw=False):
 
     if draw:
         cv2.drawContours(img, contours, -1, 0, 1)
-        cv2.imshow("c", img)
-        cv2.waitKey(0)
+        # cv2.imshow("c", img)
+        # cv2.waitKey(0)
 
     return contours
 
-
-if __name__ == "__main__":
-    # create3DView(debug=True)
+def randomTestImages():
+    """
+    Function to analyze random mot images I found and calculate their distance
+    to an arbituary fiber
+    :return:
+    """
     # imgPath = r"./saved_images/motTestImage.png"
     imgPath = r"./saved_images/motTestImage_pantitaThesis.jpg"
     imgPath = r"./saved_images/mot image.png"
-
     image = cv2.imread(imgPath, 0)
+
     x, y, image = getMOTCenter(image)
 
     # Create arbituary fiber and draw on picture
     h, w = image.shape
-    fiberX = int(w/2)  # Assume fiber is in the middle of the image
+    fiberX = int(w / 2)  # Assume fiber is in the middle of the image
     fiberY = h - 50  # Assume fiber is 50 pixels above bottom border
-    cv2.rectangle(image, (fiberX-5, h), (fiberX+5, fiberY), 190, -1)
+    cv2.rectangle(image, (fiberX - 5, h), (fiberX + 5, fiberY), 190, -1)
 
     relx = x - fiberX
     rely = fiberY - y
     xPos = f"Rel_x: {relx} px"
     yPos = f"Rel_y: {rely} px"
 
-    cv2.putText(image, xPos, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
-    cv2.putText(image, yPos, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
+    cv2.putText(image, xPos, (10, 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
+    cv2.putText(image, yPos, (10, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
 
     cv2.arrowedLine(image, (fiberX, fiberY), (x, y), 0, 1)
 
     cv2.imshow("image", image)
     cv2.waitKey(0)
+
+def npqoTestImages():
+    # Image 1 #
+    imgPath = r"./saved_images/npqo_pics/little_MOT_after_UV.jpg"
+    image = cv2.imread(imgPath, 0)
+    image = cv2.rotate(image, cv2.ROTATE_180)
+    motROI = image[205:245, 340:380]
+    x, y, imgResult1 = getMOTCenter(motROI)
+    cv2.namedWindow('imgResult1', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('imgResult1', 300, 300)
+    cv2.imshow("imgResult1", imgResult1)
+
+    # Image 2 #
+    imgPath = r"./saved_images/npqo_pics/3co4master.jpg"
+    image = cv2.imread(imgPath, 0)
+    image = cv2.rotate(image, cv2.ROTATE_180)
+    motROI = image[305:405, 380:480]
+    x, y, imgResult2 = getMOTCenter(motROI)
+    cv2.namedWindow('imgResult2', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('imgResult2', 300, 300)
+    cv2.imshow("imgResult2", imgResult2)
+
+    # Image 3 #
+    imgPath = r"./saved_images/npqo_pics/2019-6-07.jpg"
+    image = cv2.imread(imgPath, 0)
+    image = cv2.rotate(image, cv2.ROTATE_180)
+    motROI = image[30:100, 350:420]
+    x, y, imgResult3 = getMOTCenter(motROI)
+    cv2.namedWindow('imgResult3', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('imgResult3', 300, 300)
+    cv2.imshow("imgResult3", imgResult3)
+
+    cv2.waitKey(0)
+
+
+if __name__ == "__main__":
+    # create3DView(debug=True)
+    npqoTestImages()

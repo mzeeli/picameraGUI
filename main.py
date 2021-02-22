@@ -1,64 +1,107 @@
+"""
+Main script for raspberry pi camera GUI:
+Creates tkinter GUI application to access mot information with picameras.
+Provides information on alignment , #atoms, temp
+
+Last Updated: Winter, 2021
+Author: Michael Li
+"""
 from motCamera import MOTCamera
 from datetime import datetime
 from PIL import ImageTk, Image
+from tkinter import filedialog as fd
 
 import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
 import threading
 import cv2
-import imageAnalysis as imgAna
+
+import motTemperature
+import motAlignment
+import numAtoms
 
 class PiCameraGUI(tk.Frame):
-    def __init__(self, master, output=r"./saved_images", debug=False):
+    def __init__(self, master, output=r"./saved_images", debug=False,
+                 camOn=True):
+        """
+        Main GUI class for picamera functionalities
+
+        :param master: Main tkinter frame to put everything on
+        :param output: Directory to save images
+        :param debug: Enter debug mode, by default is disabled
+        :param camOn: Turn on cameras, by default enabled. Useful for
+        debugging non-camera related features and code development outside of
+        raspberry pi
+        """
         self.master = master
         self.output = output
         self.debug = debug
+        self.camOn = camOn
+
         self.mWidth = 800  # Set main window width
         self.mHeight = 600  # Set main window height
         self.defaultFont = 'Courier'  # Default font style
-        self.cam0 = MOTCamera(1, grayscale=True)  # Pi compute module assigns cam0 port as numerical value 1
-        self.cam1 = MOTCamera(0, grayscale=True)  # Pi compute module assigns cam1 port as numerical value 0
+        self.log = []
+
+        self.temperature = "TBD"  # Temperature
+        self.numAtomsAbs = "TBD"  # Number of atoms calculated by absorption
+        self.numAtomsFlo = "TBD"  # Number of atoms calculated by fluorescence
+
+        if camOn:
+            # Pi compute module assigns cam0 port as numerical value 1
+            self.cam0 = MOTCamera(1, grayscale=True)
+            self.cam1 = MOTCamera(0, grayscale=True)
         
         tk.Frame.__init__(self, master)
         
         # Create main panel and show
-        self.mainDisplay = tk.Frame(master=self.master, height=self.mHeight, width=self.mWidth,
-                                    highlightbackground="black", highlightthicknes=1)
+        self.mainDisplay = tk.Frame(master=self.master,
+                                    height=self.mHeight, width=self.mWidth,
+                                    highlightbackground="black",
+                                    highlightthicknes=1)
         self.mainDisplay.pack()
 
         # Default starting window
-        self.showCameraWin()
+        self.showAnalysisWin()
 
         # Add the navigation buttons at the bottom
         self.createNavigationBtn()
 
     def createNavigationBtn(self):
         """
-        Creates and displays the bottom navigation buttons and assigns their respective window display functions
+        Creates and displays the bottom navigation buttons and assigns their
+        respective window display functions
         """
         btnHeight = 70
         btnWidth = 160
 
         btnFonts = tkFont.Font(family=self.defaultFont, size=15)
 
-        navigationFrame = tk.Frame(master=self.master, height=btnHeight+2, width=self.mWidth,
-                                   highlightbackground="black", highlightthicknes=1)
+        navigationFrame = tk.Frame(master=self.master,
+                                   height=btnHeight+2, width=self.mWidth,
+                                   highlightbackground="black",
+                                   highlightthicknes=1)
 
         # Create Buttons #
-        alignmentBtn = tk.Button(navigationFrame, text='Alignment', font=btnFonts, command=self.showAlignmentWin)
+        alignmentBtn = tk.Button(navigationFrame, text='Alignment',
+                                 font=btnFonts, command=self.showAlignmentWin)
         alignmentBtn.place(x=0, y=0, height=btnHeight, width=btnWidth)
 
-        analysisBtn = tk.Button(navigationFrame, text='Analysis', font=btnFonts, command=self.showAnalysisWin)
+        analysisBtn = tk.Button(navigationFrame, text='Analysis',
+                                font=btnFonts, command=self.showAnalysisWin)
         analysisBtn.place(x=btnWidth, y=0, height=btnHeight, width=btnWidth)
 
-        cameraBtn = tk.Button(navigationFrame, text='Camera View', font=btnFonts, command=self.showCameraWin)
+        cameraBtn = tk.Button(navigationFrame, text='Camera View',
+                              font=btnFonts, command=self.showCameraWin)
         cameraBtn.place(x=btnWidth*2, y=0, height=btnHeight, width=btnWidth)
         
-        viewBtn = tk.Button(navigationFrame, text='3D View', font=btnFonts, command=self.show3DWin)
+        viewBtn = tk.Button(navigationFrame, text='3D View', font=btnFonts,
+                            command=self.show3DWin)
         viewBtn.place(x=btnWidth*3, y=0, height=btnHeight, width=btnWidth)
         
-        logBtn = tk.Button(navigationFrame, text='Log', font=btnFonts, command=self.showLogWin)
+        logBtn = tk.Button(navigationFrame, text='Log', font=btnFonts,
+                           command=self.showLogWin)
         logBtn.place(x=btnWidth*4, y=0, height=btnHeight, width=btnWidth)
 
         navigationFrame.pack()
@@ -72,7 +115,8 @@ class PiCameraGUI(tk.Frame):
 
         # Create right side information panel #
         coordinatesFrame = tk.Frame(self.mainDisplay, height=570, width=225,
-                                    highlightbackground="black", highlightthicknes=1)
+                                    highlightbackground="black",
+                                    highlightthicknes=1)
         coordinatesFrame.place(x=570, y=11)
 
         motLblFont = tkFont.Font(family=self.defaultFont, size=20)
@@ -84,20 +128,20 @@ class PiCameraGUI(tk.Frame):
 
         imgPath = r"./saved_images/mot image.png"
         image = cv2.imread(imgPath, 0)
-        x1, y1, _ = imgAna.getMOTCenter(image)
+        x1, z1, _ = motAlignment.getMOTCenter(image)
 
-        positions = np.array([x1, -5, 10])
+        positions = np.array([x1, -5, z1])
         numAtoms = 101367
 
         # Display Data
         dataFont = tkFont.Font(family=self.defaultFont, size=20)
         relYStart = 0.18
         relDist = 0.225  # increments in rely between parameters
-        tk.Label(coordinatesFrame, text=f'x(nm)\n{positions[0]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'x\n{positions[0]}', font=dataFont)\
             .place(relx=0.5, rely=relYStart, anchor='center')
-        tk.Label(coordinatesFrame, text=f'y(nm)\n{positions[1]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'y\n{positions[1]}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist, anchor='center')
-        tk.Label(coordinatesFrame, text=f'z(nm)\n{positions[2]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'z\n{positions[2]}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist * 2, anchor='center')
         tk.Label(coordinatesFrame, text=f'#Atoms\n{numAtoms}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist * 3, anchor='center')
@@ -105,7 +149,8 @@ class PiCameraGUI(tk.Frame):
         # Draw MOT on grid #
         gHeight = 570  # Grid height
         gWidth = 550  # Grid width
-        alignmentGrid = tk.Canvas(self.mainDisplay, bg="gray60", height=gHeight, width=gWidth)
+        alignmentGrid = tk.Canvas(self.mainDisplay, bg="gray60",
+                                  height=gHeight, width=gWidth)
         alignmentGrid.place(x=15, y=10)
 
         # Draw axis lines
@@ -113,7 +158,7 @@ class PiCameraGUI(tk.Frame):
         alignmentGrid.create_line(gWidth/2, 0, gWidth/2, gHeight)
 
         # Scale pixel location to real location
-        zoom = 15  # Todo dynamic scalable dimensions
+        zoom = 1
         positions = positions*zoom
         # Draw MOT
         motRadius = 15  # Todo dynamic radius?
@@ -126,7 +171,10 @@ class PiCameraGUI(tk.Frame):
     def showAnalysisWin(self):
         """
         Creates widgets associated with the Analysis window.
-        This window is used to calculate temperature and #Atoms
+        This window is used to calculate temperature and #Atoms by absorption,
+        it will not reflect real-time data like the other windows. The data
+        displayed here are fed by selecting MOT images and their background
+        photos
         """
         self.clearMainDisplay()
 
@@ -135,20 +183,34 @@ class PiCameraGUI(tk.Frame):
         dataFont = tkFont.Font(family=self.defaultFont, size=30)
 
         # Todo get real temperature and atom count
-        temp = 3.2
-        numAtoms = 101367  # Todo Should probably be a field instead
+        # Todo create pop up window that allows user to select a bunch of images
+
 
         # Display temperature data
-        tk.Label(self.mainDisplay, text=f'Temperature (mK)', font=lblFont)\
-            .place(x=self.mWidth*3/10, y=self.mHeight/2-30, anchor='center')
-        tk.Label(self.mainDisplay, text=f'{temp}', font=dataFont)\
-            .place(x=self.mWidth*3/10, y=self.mHeight/2+30, anchor='center')
+        tk.Label(self.mainDisplay, text=f'Temperature (K)', font=lblFont)\
+            .place(relx=0.35, rely=0.25, anchor='center')
+        tempLbl = tk.Label(self.mainDisplay, text=self.temperature,
+                           font=dataFont)
+        tempLbl.place(relx=0.35, rely=0.35, anchor='center')
 
         # Display atom count data
         tk.Label(self.mainDisplay, text=f'#Atoms', font=lblFont)\
-            .place(x=self.mWidth*7/10, y=self.mHeight/2-30, anchor='center')
-        tk.Label(self.mainDisplay, text=f'{numAtoms}', font=dataFont)\
-            .place(x=self.mWidth*7/10, y=self.mHeight/2+30, anchor='center')
+            .place(relx=0.35, rely=0.65, anchor='center')
+        numAtomLbl = tk.Label(self.mainDisplay, text=self.numAtomsAbs,
+                              font=dataFont)
+        numAtomLbl.place(relx=0.35, rely=0.75, anchor='center')
+
+        # button for temperature calculations
+        getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
+                               text="Calculate Temperature",
+                               command=lambda : self.getTemperature(tempLbl))
+        getTempBtn.place(relx=0.8, rely=0.3, anchor='center')
+
+        # button for absorption based #atoms calculations
+        getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
+                               text="Get #Atoms by Absorption",
+                               command=lambda : self.getNumAtomsAbs(numAtomLbl))
+        getTempBtn.place(relx=0.8, rely=0.7, anchor='center')
 
     def showCameraWin(self):
         """
@@ -162,13 +224,17 @@ class PiCameraGUI(tk.Frame):
         camDispHeight = 272;
         camDispWidth = 608;
 
-        cam0Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
+        cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
+                           width=camDispWidth, height=camDispHeight)
         cam0Lbl.place(x=40, y=25)
-        threading.Thread(target=lambda : self.cam0.showImgOnLbl(cam0Lbl)).start()  # Snap an image upon opening window
+        # Snap an image upon opening camera view window and display it on cam0 label
+        threading.Thread(target=lambda: self.cam0.showImgOnLbl(cam0Lbl)).start()
 
-        cam1Lbl = tk.Label(self.mainDisplay, height=camDispHeight, width=camDispWidth, bd=1, relief='solid')
+        cam1Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
+                           height=camDispHeight, width=camDispWidth)
         cam1Lbl.place(x=40, y=300)
-        threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start()  # Snap an image upon opening window
+        # Snap an image upon opening camera view window and display it on cam1 label
+        threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
         ## Camera Labels ##
         btnRelx = 0.91
@@ -185,12 +251,13 @@ class PiCameraGUI(tk.Frame):
         ## Video Button for cam 0 ##
         vidImgPath = r'./assets/vid_0.png'
         vidImg = resizeImage(vidImgPath, btnH, btnW)
-        vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE,
-                           command=lambda: threading.Thread(target=self.cam0.showVid).start() )
+        vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, command=lambda:
+                           threading.Thread(target=self.cam0.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
         vidBtn.place(relx=btnRelx, y=self.mHeight/2-3*distY, anchor='center')
-        # ~ tk.Label(self.mainDisplay, text='Show Vid 0').place(relx=btnRelx, y=105, anchor='center')
+        tk.Label(self.mainDisplay, text='Show Vid 0')\
+            .place(relx=btnRelx, y=105, anchor='center')
 
         ## Snap Image Button ##
         snapImgPath = r'./assets/snap.png'
@@ -200,7 +267,8 @@ class PiCameraGUI(tk.Frame):
         snapBtn.image = snapImg
         snapBtn.configure(image=snapImg)
         snapBtn.place(relx=btnRelx, y=self.mHeight/2-distY, anchor='center')
-        # ~ tk.Label(self.mainDisplay, text='Snap Pictures').place(relx=btnRelx, y=259, anchor='center')
+        tk.Label(self.mainDisplay, text='Snap Pictures')\
+            .place(relx=btnRelx, y=259, anchor='center')
             
         ## Save Button ##
         saveImgPath = r'./assets/save.png'
@@ -210,19 +278,21 @@ class PiCameraGUI(tk.Frame):
         saveBtn.image = saveImg
         saveBtn.configure(image=saveImg)
         saveBtn.place(relx=btnRelx, y=self.mHeight/2+distY, anchor='center')
-        # ~ tk.Label(self.mainDisplay, text='Save Images').place(relx=btnRelx, y=413, anchor='center')
+        tk.Label(self.mainDisplay, text='Save Images')\
+            .place(relx=btnRelx, y=413, anchor='center')
             
             
         ## Video Button for cam1 ##
         vidImgPath = r'./assets/vid_1.png'
         vidImg = resizeImage(vidImgPath, btnH, btnW)
-        vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE,
-                           command=lambda: threading.Thread(target=self.cam1.showVid).start() )
+        vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, command=lambda:
+                           threading.Thread(target=self.cam1.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
         vidBtn.place(relx=btnRelx, y=self.mHeight/2+3*distY, anchor='center')
-        # ~ tk.Label(self.mainDisplay, text='Show Vid 1').place(relx=btnRelx, y=567, anchor='center')
-        
+        tk.Label(self.mainDisplay, text='Show Vid 1')\
+            .place(relx=btnRelx, y=567, anchor='center')
+
     def show3DWin(self):
         """
         Creates widgets associated with the 3D window.
@@ -230,9 +300,9 @@ class PiCameraGUI(tk.Frame):
         geometry. Todo
         """
         self.clearMainDisplay()
-        tk.Label(self.mainDisplay, text="Coming soon: matplotlib 3D view of structure")\
+        tk.Label(self.mainDisplay, text="Coming soon")\
                 .place(relx=0.5, rely=0.5, anchor='center')
-                
+
     def showLogWin(self):
         """
         Creates widgets associated with the Log window.
@@ -243,16 +313,91 @@ class PiCameraGUI(tk.Frame):
         tk.Label(self.mainDisplay, text="Coming soon: log window")\
                 .place(relx=0.5, rely=0.5, anchor='center')
 
+    def getTemperature(self, tempLbl):
+        """
+        Starts temperature calculation function in the following steps:
+        1. Select images to use for temperature calculations (suggest > 5)
+        2. Select background image of just probe
+        3. Sends filepaths to getTempFromImgList and returns temperature to
+           display on label
 
+        :param tempLbl: (tkinter.Label) lable to display data on
+
+        :return: None
+        """
+        intialDir = r"./saved_Images"
+
+        # fd brings up windows explorer to find image files
+        fileNames = fd.askopenfilenames(initialdir=intialDir,
+                                        title="Select MOT image files")
+
+        bgImgPath = fd.askopenfilename(initialdir=intialDir,
+                                       title="Select background image")
+
+        # Perform calculations if user selected files
+        if len(fileNames) > 2 and bgImgPath:
+            # Get Temperature from selected images
+            T = motTemperature.getTempFromImgList(fileNames, bgImgPath)
+
+            # Convert T to string and reduce significant figures
+            self.temperature = "{0:.4e}".format(T)
+
+            # Update label temperature display
+            tempLbl.configure(text=self.temperature)
+
+        # Exit funciton if user decided to cancel temp calculations
+        else:
+            if len(fileNames) <= 2:
+                print("Please select more than 2 images for more accurate "
+                      "temperature calculation")
+                print("Cancelling temperature calculation")
+
+            return
+
+    def getNumAtomsAbs(self, numAtomsLbl):
+        """
+        Starts temperature calculation function in the following steps:
+        1. Select MOT image (suggest select one of the earlier images)
+        2. Select background image of just probe
+        3. Select dark bg image
+        4. Sends filepaths to numAtomsAbs and returns #atoms calculated by
+        absorption to display on label
+
+        :param numAtomsLbl: (tkinter.Label) lable to display data on
+        :return:
+        """
+        intialDir = r"./"
+
+        # fd brings up windows explorer to find image files
+        motImgPath = fd.askopenfilename(initialdir=intialDir,
+                                        title="Select MOT image")
+
+        probeImgPath = fd.askopenfilename(initialdir=intialDir,
+                                          title="Select background image")
+
+        bgImgPath = fd.askopenfilename(initialdir=intialDir,
+                                       title="Select BG image")
+
+        # Only perform calculations if user input paths
+        if motImgPath and probeImgPath and bgImgPath:
+            self.numAtomsAbs = numAtoms.numAtomsAbs([motImgPath],
+                                                          [probeImgPath],
+                                                          [bgImgPath])
+            self.numAtomsAbs = "{0:.4e}".format(self.numAtomsAbs)
+
+            numAtomsLbl.configure(text=self.numAtomsAbs)
+
+        else:
+            return
     def snapImages(self, cam0Lbl, cam1Lbl):
         """
         Snaps new images to the designated labels
         cam0Lbl (tk.Label): Label to display image of cam0
         cam1Lbl (tk.Label): Label to display image of cam1
         """
-        
-        threading.Thread(target=lambda : self.cam0.showImgOnLbl(cam0Lbl)).start()  
-        threading.Thread(target=lambda : self.cam1.showImgOnLbl(cam1Lbl)).start()  
+        self.log.append("Snapped Images")
+        threading.Thread(target=lambda: self.cam0.showImgOnLbl(cam0Lbl)).start()
+        threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
     def saveImage(self):
         """
@@ -275,19 +420,22 @@ class PiCameraGUI(tk.Frame):
     def clearMainDisplay(self):
         """
         Clears all widgets on the display to make room on the new window.
-        Called at the start of every new window
+        Called at the start of every new window call
         """
         for widget in self.mainDisplay.winfo_children():
             widget.destroy()
-            
+
     def onWinClose(self):
         """
-        Callback for when the gui is closed, need to ensure the camera
+        Callback for when the gui is closed. Need to ensure the camera
         resources are released
         """
         print("Exiting Application")
-        self.cam0.close()
-        self.cam1.close()
+
+        # Release camera resources
+        if self.camOn:
+            self.cam0.close()
+            self.cam1.close()
 
         self.master.destroy()
 
@@ -311,7 +459,7 @@ if __name__ == "__main__":
     window = tk.Tk()
     window.title('PiCamera')
     
-    gui = PiCameraGUI(window, debug=False)
+    gui = PiCameraGUI(window, debug=False, camOn=False)
     
     window.protocol("WM_DELETE_WINDOW", gui.onWinClose)
     gui.pack()

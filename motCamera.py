@@ -1,3 +1,10 @@
+"""
+Script for MOTCamera object - child of PiCamera class
+
+Last Updated: Winter, 2021
+Author: Michael Li
+"""
+
 from picamera.array import PiRGBArray
 from PIL import ImageTk, Image
 from time import sleep
@@ -11,9 +18,13 @@ class MOTCamera(picamera.PiCamera):
     
     def __init__(self, camera_num, grayscale=True):
         """
-        camera_num [0,1]: determines which camera to open and reference
+        camera class to access camera funcitons. Child of default PiCamera class
+
+        :param camera_num: (int [0,1]) determines which camera to open and
+        reference
             camera_num = 0: gets camera connected to CAM1 on COMPUTE MODULE
             camera_num = 1: gets camera connected to CAM0 on COMPUTE MODULE
+        :param grayscale:
         """
         
         picamera.PiCamera.__init__(self, camera_num=camera_num)
@@ -24,15 +35,18 @@ class MOTCamera(picamera.PiCamera):
         # ~ self.brightness = 50 # int:[0, 100], default = 0
         # ~ self.saturation = 0   # int:[-100, 100], default = 0
         # ~ self.iso = 0 # 100, 200, 320, 400, 500, 640, 800
-        # ~ self.exposure_mode = 'fireworks' # 'night', 'nightpreview', 'backlight', 'fireworks', default = 'auto'
+        # 'night', 'nightpreview', 'backlight', 'fireworks', default = 'auto'
+        # ~ self.exposure_mode = 'fireworks'
 
-        # ~ self.shutter_speed  = 1800 # Shutter speed in microseconds, default = auto
+        # default = auto
+        # ~ self.shutter_speed  = 1800 # Shutter speed in microseconds
 
-        
-        # Pi compute module reads cam0 port as numerical value 1 and vice versa, this converts 0->1 and 1->0
-        self.camNum = abs(camera_num - 1) 
-        
-        self.color_effects = (128, 128) if grayscale else None  # By default set images to grayscale
+        # Pi compute module reads cam0 port as numerical value 1 and vice versa
+        # this converts 0->1 and 1->0, so camNum matches the camera port
+        self.camNum = abs(camera_num - 1)
+
+        # By default set images to grayscale
+        self.color_effects = (128, 128) if grayscale else None
         self.img = None  # field to store images
         self.windowName = f"Cam{self.camNum}, double left click to exit"
         self.vidOn = False  # Tracks if video is recorded on a cv2 window
@@ -40,6 +54,12 @@ class MOTCamera(picamera.PiCamera):
         self.framerate = 80
 
     def capImg(self, waitTime):
+        """
+        Captures still image with picameras and saves them as 'foo.jpg'
+        Function was created to test cameras and make sure they are working
+        :param waitTime: Time delay in seconds for camera warmup and capture
+        :return:
+        """
         self.resolution = (640, 480)
         self.start_preview()
 
