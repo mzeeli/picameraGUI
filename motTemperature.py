@@ -24,6 +24,7 @@ from pylab import gray
 from matplotlib import pyplot
 from scipy.optimize import curve_fit
 from math import sqrt, exp
+from cesium import Cesium
 
 
 def findImgFiles(imgDir):
@@ -448,7 +449,8 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
     print('Coeff of corr: {0}'.format(r_squ))
 
     # Temperature calculation
-    M = 2.206948425e-25  # Atomic mass of Cs atom
+    cesium = Cesium()
+    M = cesium.atomicMass
     T = getTemperature(M, sigma_v)
     print('Temperature: {0}'.format(T))
 

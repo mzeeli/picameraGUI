@@ -45,13 +45,18 @@ class MOTCamera(picamera.PiCamera):
         # this converts 0->1 and 1->0, so camNum matches the camera port
         self.camNum = abs(camera_num - 1)
 
+        ## Camera Hardware Constants
+        self.pixelSize = 1.12e-6 ** 2
+
+        ## Image capture settings
         # By default set images to grayscale
         self.color_effects = (128, 128) if grayscale else None
-        self.img = None  # field to store images
         self.windowName = f"Cam{self.camNum}, double left click to exit"
         self.vidOn = False  # Tracks if video is recorded on a cv2 window
         self.resolution = (640, 480)
         self.framerate = 80
+        self.img = None  # field to store images
+
 
     def capImg(self, waitTime):
         """

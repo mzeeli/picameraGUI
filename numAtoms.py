@@ -2,11 +2,12 @@
 Script to calculate number of atoms given a MOT image
 Todo: Should have both fluorescent and absorption imaging techniques
 
-The absorption imaging technique script followed the method in [Luksch, Thesis,
+The absorption imaging # atom script followed the method in [Luksch, Thesis,
 National University of Singapore (2012)]. This script was originally written by
 Taehyun Yoon but for a different setup. I modified it to fit the raspberry pi
 system
 
+The fluorescent imaging technique #atom script follows
 
 Last Updated: Winter, 2021
 Author: Michael Li
@@ -18,9 +19,12 @@ import re
 
 from matplotlib import pyplot
 from PIL import Image
+from cesium import Cesium
 
 def imgavr(filelist, y):  # function to fit to sigma array
     """
+    Function included with Taehyun's script
+
     Reads a list of files in the target directory and averages their values,
     goal is to get an averaged image of the mot to reduce noise
 
@@ -114,14 +118,12 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
     """
     # Constants #
 
-    Gamma = 5.22  # Natural linewidth [MHz]
     crossSec = 346.9e-15  # [m^2]
     OD_upper_bound = 6  # valid OD bound value, original was 4
 
     px_meter = 13.7e-6  # ratio of px number to meter
 
     # Read Images #
-
     MOTimg = imgavr(motImgPath, y)
     probeimg = imgavr(probeImgPath, y)
     bgimg = imgavr(bgImgPath, y)
@@ -156,7 +158,7 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
 
 def numAtomsOverTime(imgDir):
     """
-    Performs numAtomsAbs on all timed image files in a given folder.
+    Performs numAtomsAbs on all image files in a given folder.
     Returns list of #atoms calculated and their respective timestamp
 
     :param imgDir: Directory containing all image files, see "Absorption images
@@ -199,44 +201,27 @@ def numAtomsOverTime(imgDir):
 
     return atomNum, imgTimes
 
+def numAtomsFlu():
+    """
+    Calculates the number of atoms based on the fluorescent method.
+
+    :return: # atoms
+    """
+    cesium = Cesium()
+    print(cesium.atomicMass)
+
+
 
 if __name__ == "__main__":
     # Expect og group to have 80 million
     # Expect mot1 to have 10-20 million
     # Expect mot2 to have 40 million
 
-    print("--First Set--")
-    motImgPath = ['legacy/Absorption images example/04ms.png']
-    probeImgPath = ['legacy/Absorption images example/background.png']
-    bgImgPath = ['legacy/Absorption images example/bg.png']
-    n = numAtomsAbs(motImgPath, probeImgPath, bgImgPath)
-    print(n)
-    # print("--Mot1--")
-    # motImgPath = [r'./MOT1/04ms.jpg']
-    # probeImgPath = ['./MOT1/background.jpg']
-    # bgImgPath = ['./MOT1/bg.jpg']
-    # getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath)
-    #
-    # print("--Mot2--")
-    # motImgPath = [r'./MOT2/04ms.jpg']
-    # probeImgPath = ['./MOT2/background.jpg']
-    # bgImgPath = ['./MOT2/bg.jpg']
-    # getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath)
+    # print("--First Set--")
+    # motImgPath = ['legacy/Absorption images example/04ms.png']
+    # probeImgPath = ['legacy/Absorption images example/background.png']
+    # bgImgPath = ['legacy/Absorption images example/bg.png']
+    # n = numAtomsAbs(motImgPath, probeImgPath, bgImgPath)
+    # print(n)
 
-    #### Num atoms over time ####
-    # ogPath = r"legacy/Absorption images example"
-    # ogNum, ogTime = numAtomsOverTime(ogPath)
-    # 
-    # mot1Path = r"saved_images/MOT1"
-    # mot1Num, mot1Time = numAtomsOverTime(mot1Path)
-    # 
-    # mot2Path = r"saved_images/MOT2"
-    # mot2Num, mot2Time = numAtomsOverTime(mot2Path)
-    # 
-    # pyplot.plot(ogTime, ogNum, '-o', label='original, T=1.64e-5K')
-    # pyplot.plot(mot1Time, mot1Num, '-o', label='mot1, T=4692K')
-    # pyplot.plot(mot2Time, mot2Num, '-o', label='mot2, T=5711K')
-    # pyplot.xlabel("time (ms)")
-    # pyplot.ylabel("#Atoms")
-    # pyplot.legend()
-    # pyplot.show()
+    cesium = Cesium()
