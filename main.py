@@ -239,6 +239,7 @@ class PiCameraGUI(tk.Frame):
         ## Camera Labels ##
         btnRelx = 0.91
         distY = 60
+        lblOffset = 0.08
         btnH = 60
         btnW = 65
 
@@ -255,9 +256,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam0.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, y=self.mHeight/2-3*distY, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.2, anchor='center')
         tk.Label(self.mainDisplay, text='Show Vid 0')\
-            .place(relx=btnRelx, y=105, anchor='center')
+            .place(relx=btnRelx, rely=0.2+lblOffset, anchor='center')
 
         ## Snap Image Button ##
         snapImgPath = r'./assets/snap.png'
@@ -266,9 +267,9 @@ class PiCameraGUI(tk.Frame):
                             command=lambda : self.snapImages(cam0Lbl, cam1Lbl))
         snapBtn.image = snapImg
         snapBtn.configure(image=snapImg)
-        snapBtn.place(relx=btnRelx, y=self.mHeight/2-distY, anchor='center')
+        snapBtn.place(relx=btnRelx, rely=0.4, anchor='center')
         tk.Label(self.mainDisplay, text='Snap Pictures')\
-            .place(relx=btnRelx, y=259, anchor='center')
+            .place(relx=btnRelx, rely=0.4+lblOffset, anchor='center')
             
         ## Save Button ##
         saveImgPath = r'./assets/save.png'
@@ -277,9 +278,9 @@ class PiCameraGUI(tk.Frame):
                             command=self.saveImage)
         saveBtn.image = saveImg
         saveBtn.configure(image=saveImg)
-        saveBtn.place(relx=btnRelx, y=self.mHeight/2+distY, anchor='center')
+        saveBtn.place(relx=btnRelx, rely=0.6, anchor='center')
         tk.Label(self.mainDisplay, text='Save Images')\
-            .place(relx=btnRelx, y=413, anchor='center')
+            .place(relx=btnRelx, rely=0.6+lblOffset, anchor='center')
             
             
         ## Video Button for cam1 ##
@@ -289,9 +290,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam1.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, y=self.mHeight/2+3*distY, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.8, anchor='center')
         tk.Label(self.mainDisplay, text='Show Vid 1')\
-            .place(relx=btnRelx, y=567, anchor='center')
+            .place(relx=btnRelx, rely=0.8+lblOffset, anchor='center')
 
     def show3DWin(self):
         """
@@ -459,7 +460,7 @@ if __name__ == "__main__":
     window = tk.Tk()
     window.title('PiCamera')
     
-    gui = PiCameraGUI(window, debug=False, camOn=False)
+    gui = PiCameraGUI(window, debug=False, camOn=True)
     
     window.protocol("WM_DELETE_WINDOW", gui.onWinClose)
     gui.pack()

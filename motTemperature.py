@@ -47,7 +47,7 @@ def findImgFiles(imgDir):
 
         probeImgFile = [os.path.join(imgDir, f)
                         for f in files if re.match(probeImgCond, f)][0]
-
+    imgFiles.sort()
     return imgFiles, probeImgFile
 
 
@@ -279,7 +279,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         return popt[2]
 
 
-def imageToSigmaE2(imgback, imgfore, time=-1, debug=True):
+def imageToSigmaE2(imgback, imgfore, time=-1, debug=False):
     """
     new version of image_to_sigma I wrote, problem is the image_to_sigma
     function Turner wrote sometimes gives a wrong value when he does curve_fit.
@@ -321,9 +321,9 @@ def imageToSigmaE2(imgback, imgfore, time=-1, debug=True):
     maxIntensity = motROI.max() / exp(2)  # 1/e^2
     ret, mask = cv2.threshold(motROI, maxIntensity, 255, cv2.THRESH_BINARY)
 
-    # Get and the largest contour around the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                   cv2.CHAIN_APPROX_NONE)  # Find all contours
+    # Get the largest contour around the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, 
+                                   cv2.CHAIN_APPROX_NONE)   
     c = max(contours, key=cv2.contourArea)  # get largest contour
 
     # Largest Inner Circle ##

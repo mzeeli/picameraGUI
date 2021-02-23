@@ -209,14 +209,10 @@ def getContours(limit, img, draw=False):
     :return: list of cv2 contours for the given threshold
     """
     smoothedImg = cv2.GaussianBlur(img, (7, 7), cv2.BORDER_DEFAULT)
-    ret, thresh = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
+    ret, mask = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
 
     # Updated versions of findContours removed one of the return parameters
-    if int(cv2.__version__[0]) > 3:
-        contours, hierarchy = cv2.findContours(thresh, 1, 2)
-
-    else:  # Ignore first parameter for all other versions of opencv
-        _, contours, hierarchy = cv2.findContours(thresh, 1, 2)
+    contours, hierarchy = cv2.findContours(mask, 1, 2)
 
     if draw:
         cv2.drawContours(img, contours, -1, 0, 1)
