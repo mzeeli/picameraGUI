@@ -21,6 +21,8 @@ from matplotlib import pyplot
 from PIL import Image
 from cesium import Cesium
 
+cesium = Cesium()
+
 def imgavr(filelist, y):  # function to fit to sigma array
     """
     Function included with Taehyun's script

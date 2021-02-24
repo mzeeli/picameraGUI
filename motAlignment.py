@@ -160,7 +160,7 @@ def getMOTCenter(ogImage):
     Contour boundaries are created dynamically based on image intensity.
 
     Under normal circumstances will create 6 contours evenly spaced between
-    intensities: [image max intensity * 0.9, image max intensity * 0.25].
+    intensities: [image max intensity * 0.9, image max intensity * 1/e^2].
 
     Returns centroid position of innermost contour and a copy of the ogImage
     with contours drawn on it
@@ -174,7 +174,7 @@ def getMOTCenter(ogImage):
 
     # Dynamic contour band creation
     upperBound = img.max() * 0.9
-    lowerBound = img.max() * 0.25
+    lowerBound = img.max() * 0.1353 # 1/e^2 convention
     numContours = 6
     contourBounds = np.linspace(lowerBound, upperBound, numContours)
     # print(contourBounds)

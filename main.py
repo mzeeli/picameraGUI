@@ -249,6 +249,12 @@ class PiCameraGUI(tk.Frame):
         tk.Label(self.mainDisplay, text='cam1', font=camFont, bg='gray83')\
             .place(x=41, y=301)
 
+        ## Calibration Labels
+        calibrateBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, 
+                                 text="Calibrate",
+                                 command=self.calibrateCameraShutter)
+        calibrateBtn.place(relx=btnRelx, rely=0.1, anchor='center')
+                           
         ## Video Button for cam 0 ##
         vidImgPath = r'./assets/vid_0.png'
         vidImg = resizeImage(vidImgPath, btnH, btnW)
@@ -390,6 +396,17 @@ class PiCameraGUI(tk.Frame):
 
         else:
             return
+            
+    def calibrateCameraShutter(self):
+        """
+        Calibrates shutter speed for cam1, and assigns the same shutter
+        speed value to cam0
+        """
+        shutterSpeed = self.cam1.calibrateShutterSpeed()
+        self.cam0.shutter_speed = shutterSpeed
+        
+        
+
     def snapImages(self, cam0Lbl, cam1Lbl):
         """
         Snaps new images to the designated labels
@@ -413,6 +430,10 @@ class PiCameraGUI(tk.Frame):
         # Stack cam0 and cam1 images vertically
         combinedImg = np.concatenate((self.cam1.img, self.cam0.img), axis=0)
         
+        # If not grayscale, image need to reorder image dimensions to match RGB
+        if combinedImg.shape == (272*2, 608, 3):
+            combinedImg = combinedImg[:, :, ::-1]
+            
         # Save combined image
         cv2.imwrite(savePath, combinedImg)
         

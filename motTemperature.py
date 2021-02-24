@@ -26,6 +26,8 @@ from scipy.optimize import curve_fit
 from math import sqrt, exp
 from cesium import Cesium
 
+cesium = Cesium()
+
 
 def findImgFiles(imgDir):
     """
@@ -346,9 +348,7 @@ def imageToSigmaE2(imgback, imgfore, time=-1, debug=False):
 
     # Convert from 1/e^2 to FWHM radius to calculate sigma
     FWHM_radius = int(2*w/1.699)
-    # FWHM_radius = w
     sigma = FWHM_radius / (2*sqrt(2*np.log(2)))
-    # print(f"sigma = {sigma}")
 
     if debug:
         # Create copies of ROI to draw on them without reprecussion
@@ -449,7 +449,6 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
     print('Coeff of corr: {0}'.format(r_squ))
 
     # Temperature calculation
-    cesium = Cesium()
     M = cesium.atomicMass
     T = getTemperature(M, sigma_v)
     print('Temperature: {0}'.format(T))
