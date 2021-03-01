@@ -20,8 +20,10 @@ import re
 from matplotlib import pyplot
 from PIL import Image
 from cesium import Cesium
+from motCamera import MOTCamera
 
-cesium = Cesium()
+cs = Cesium()
+
 
 def imgavr(filelist, y):  # function to fit to sigma array
     """
@@ -45,10 +47,11 @@ def imgavr(filelist, y):  # function to fit to sigma array
         filename = filename
         # read image as grayscale
         imgsingle = np.array(Image.open(filename).convert('L'))
-        imgarray = imgsingle[cropy-cropsize:cropy+cropsize,
-                             cropx-cropsize:cropx+cropsize]
+        imgarray = imgsingle[cropy - cropsize:cropy + cropsize,
+                   cropx - cropsize:cropx + cropsize]
         # imgarray = imgarray + imgsingle
-    return imgarray/len(filelist)
+    return imgarray / len(filelist)
+
 
 def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
     """
@@ -58,7 +61,6 @@ def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
     """
     # Constants #
     fitaxis = 0  # 0: x-axis, 1: y-axis
-
 
     hbar = 1.0546e-34  # [m^2 kg/s]
     Gamma = 5.22  # Natural linewidth [MHz]
@@ -86,18 +88,19 @@ def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
 
     # Calculate optical density by ln(I/I_0) #
     # Motimg can not equal zero otherwise log(0), instead set as 1
-    MOTimg = np.array([[j if j>0 else 1 for j in i] for i in MOTimg])
+    MOTimg = np.array([[j if j > 0 else 1 for j in i] for i in MOTimg])
     # probeimg can not equal zero otherwise division by zero, instead set as 1
-    probeimg = np.array([[j if j>0 else 1 for j in i] for i in probeimg])
+    probeimg = np.array([[j if j > 0 else 1 for j in i] for i in probeimg])
 
     # get optical density, Eq 1.4 in Lusch thesis
-    ODarray = -np.log(MOTimg/probeimg)
+    ODarray = -np.log(MOTimg / probeimg)
     print(f"------{motImgPath}------")
     print(f"Highest OD value: {ODarray.max()}")
     ODarray = np.array([[j if j < OD_upper_bound else 1 for j in i]
                         for i in ODarray])
 
-    atomNum = (px_meter**2)*np.sum(ODarray)/crossSec  # Eq 1.5 in Luksch thesis
+    atomNum = (px_meter ** 2) * np.sum(
+        ODarray) / crossSec  # Eq 1.5 in Luksch thesis
     print("Atom Number: {0:.3e}".format(atomNum))
 
     if showImg:
@@ -107,6 +110,7 @@ def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
         pyplot.show()
 
     return atomNum
+
 
 def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
     """
@@ -158,7 +162,8 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
 
     return atomNum
 
-def numAtomsOverTime(imgDir):
+
+def numAtomsAbsOverTime(imgDir):
     """
     Performs numAtomsAbs on all image files in a given folder.
     Returns list of #atoms calculated and their respective timestamp
@@ -203,15 +208,31 @@ def numAtomsOverTime(imgDir):
 
     return atomNum, imgTimes
 
+
 def numAtomsFlu():
     """
     Calculates the number of atoms based on the fluorescent method.
 
     :return: # atoms
     """
-    cesium = Cesium()
-    print(cesium.atomicMass)
 
+    # Camera Hardware Properties
+    fStop = 2  # [f/#]
+    focalLength = 3.04e-3  # [m]
+
+
+    # Experimental parameters
+    intensity = -1  # [mW/cm^2] TODO get real intensity
+    detuning = -1  # [Hz]TODO get real detuing
+    distance = -1  # [m] TODO get real distance
+
+    # 
+    s = intensity / cesium.I_sat  # aturation parameter
+    apertureR = focalLength / (fStop * 2)  # Camera lens aperture radius
+    solidAngle = apertureR**2 / (4 * distance**2)  # Fraction of solid angle
+
+    # Equation (2) in "Photo-scattering rate meas of atom in a MOT" paper
+    scatteringRate = cs.lineWidth/2 * s/(1+s+(2*detuning/cs.lineWidth)**2)
 
 
 if __name__ == "__main__":

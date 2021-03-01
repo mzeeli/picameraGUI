@@ -343,6 +343,8 @@ class PiCameraGUI(tk.Frame):
 
         # Perform calculations if user selected files
         if len(fileNames) > 2 and bgImgPath:
+            print("Running Temperature Calculations")
+
             # Get Temperature from selected images
             T = motTemperature.getTempFromImgList(fileNames, bgImgPath)
 

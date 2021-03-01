@@ -90,7 +90,7 @@ def getTemperature(mass, sigma_v):
 
 
 def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
-                   Gauss2Dflag=True):
+                   Gauss2Dflag=False):
     """
 
     This function was originally a script written by Turner Silverthorne,
@@ -122,15 +122,15 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     # Crop the images and take their difference
     imgBackRatioROI = imgback[rcropy - rcropsize:rcropy + rcropsize,
-                      rcropx - rcropsize:rcropx + rcropsize]
+                              rcropx - rcropsize:rcropx + rcropsize]
     imgForeRatioROI = imgfore[
                       rcropy - rcropsize + dely:rcropy + rcropsize + dely,
                       rcropx - rcropsize + delx:rcropx + rcropsize + delx]
 
     imgBackDifROI = imgback[cropy - cropsize:cropy + cropsize,
-                    cropx - cropsize:cropx + cropsize]
+                            cropx - cropsize:cropx + cropsize]
     imgForeDifROI = imgfore[cropy - cropsize + dely:cropy + cropsize + dely,
-                    cropx - cropsize + delx:cropx + cropsize + delx]
+                            cropx - cropsize + delx:cropx + cropsize + delx]
 
     ratio = np.sum(imgBackRatioROI) / np.sum(imgForeRatioROI)
     imdif = np.array(imgBackDifROI - ratio * imgForeDifROI, 'float')
@@ -166,11 +166,11 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     m = m / np.sum(m)
 
-    # marginal distributions
+    # marginal distributions as percentage
     dx = np.sum(m, 1)
     dy = np.sum(m, 0)
 
-    # expected values
+    # expected values by weighted sum
     cx = np.sum(dx * np.arange(X))
     cy = np.sum(dy * np.arange(Y))
 
@@ -191,34 +191,26 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     # take horizontal and vertical cuts of I_bck - I_mot
     # and also I_bck
     imref_full = np.array(imgback[cropy - cropsize:cropy + cropsize,
-                          cropx - cropsize:cropx + cropsize], 'float')
+                                  cropx - cropsize:cropx + cropsize], 'float')
     if fitaxis == 0:
         imref_cut = np.array(imref_full[int(cx), :], 'float')
         samp = np.array(imdif[int(cx), :], 'float')
     elif fitaxis == 1:
         imref_cut = np.array(imref_full[:, int(cy)], 'float')
-        samp = np.array(imdif[:, int(cy), ], 'float')
+        samp = np.array(imdif[:, int(cy)], 'float')
 
     x = np.arange(len(samp))
     z = np.zeros(len(samp))
 
     # take log only at pixel values where log is well defined
+
     for i in range(len(samp)):
         if samp[i] / imref_cut[i] < 1 and imref_cut[i] > 0 and samp[i] > 0:
             z[i] = -np.log(1.0000 - samp[i] / imref_cut[i])
 
-    if Gauss2Dflag:
-        zz = np.zeros([X, Y])
-        for i in range(X):
-            for j in range(Y):
-                if imdif[i, j] / imref_full[i, j] and imdif[i, j] > 0:
-                    zz[i, j] = -np.log(1.0000 - imdif[i, j] / imref_full[i, j])
-        zz1d = zz.ravel()
-
     # find average and sigma
     mean = sum(x * z) / sum(z)
     sigma = np.sqrt(sum(z * (x - mean) ** 2) / sum(z))
-    ambient = 0.01
 
     if Gauss2Dflag:
         zz = np.zeros([X, Y])
@@ -237,13 +229,18 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         xx = np.linspace(0, X - 1, X)
         yy = np.linspace(0, Y - 1, Y)
         xx, yy = np.meshgrid(xx, yy)
-        popt, pcov = curve_fit(Gauss2D, (xx, yy), zz1d,
-                               p0=[np.amax(zz), cx, cy, sigma, ambient])
 
-        xLinspace = np.linspace(0, X - 1, X)
-        yar = Gauss2D([xLinspace, 520], popt[0], popt[1], popt[2], sigma,
-                      popt[4])
+        # Define boundaries for fitting parameters
+        #                    a, x0   y0  sigma         b
+        boundaries = ((-np.inf,  0,   0,     0,  -np.inf),
+                      (np.inf,   X,   Y,   X/2,   np.inf))
 
+        popt, pcov = curve_fit(Gauss2D, (xx, yy), zz1d, bounds=boundaries)
+
+        # xLinspace = np.linspace(0, X - 1, X)
+        # yar = Gauss2D([xLinspace, 520], popt[0], popt[1], popt[2], popt[3],
+        #               popt[4])
+        #
         # pyplot.plot(xLinspace, zz[520, :], 'ko', ms=5)
         # pyplot.plot(xLinspace, yar, 'b-', lw=3)
         #
@@ -256,8 +253,12 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         def Gauss(x, a, x0, sigma, b):
             return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) + b
 
+        # Define boundaries for fitting parameters
+        #                    a,  x0  sigma         b
+        boundaries = ((-np.inf,   0,     0,  -np.inf),
+                      ( np.inf,   X,   X/2,   np.inf))
         # fit curve
-        popt, pcov = curve_fit(Gauss, x, z, p0=[max(z), mean, sigma, ambient])
+        popt, pcov = curve_fit(Gauss, x, z, bounds=boundaries)
 
     # optional visualization
     if visualflag:
@@ -275,10 +276,11 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     # Print final sigma results
     if Gauss2Dflag:
-        print('sigma = {0:.6f},\t popt[3] = {1:.6f}'.format(sigma, popt[3]))
-        return sigma
+        # print('sigma = {0:.6f},\t popt[3] = {1:.6f}'.format(sigma, popt[3]))
+        return popt[3]
+
     else:
-        print('sigma = {0:.6f},\t popt[2] = {1:.6f}'.format(sigma, popt[2]))
+        # print('sigma = {0:.6f},\t popt[2] = {1:.6f}'.format(sigma, popt[2]))
         return popt[2]
 
 
@@ -429,7 +431,8 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
         t_ar[index] = float(fileTime)
 
         imgarray = np.array(Image.open(filename).convert('L'))
-        sig_ar[index] = imageToSigmaE2(bgarray, imgarray, t_ar[index])
+        # sig_ar[index] = imageToSigmaE2(bgarray, imgarray, t_ar[index])
+        sig_ar[index] = image_to_sigma(bgarray, imgarray)
 
     # LINEAR REGRESSION/TEMPERATURE OUTPUT STAGE
     sig_ar *= 13.7 * 10 ** -6  # convert px number to meter
@@ -471,9 +474,10 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
 
 
 if __name__ == "__main__":
-    # imgPaths, bgPath = findImgFiles(r"saved_images/MOT1")
-    # imgPaths = imgPaths[:-2]
+    imgPaths, bgPath = findImgFiles(r"saved_images/MOT1")
+    imgPaths = imgPaths[:-2]
 
-    imgPaths, bgPath = findImgFiles(r"legacy/Absorption images example")
-    imgPaths = imgPaths[:-3]  # Ignore last couple of images
+    # imgPaths, bgPath = findImgFiles(r"legacy/Absorption images example")
+    # imgPaths = imgPaths[:-3]  # Ignore last couple of images
+
     getTempFromImgList(imgPaths, bgPath)

@@ -51,7 +51,7 @@ class MOTCamera(picamera.PiCamera):
         self.img = None  # field to store images
         
         ## Camera Hardware Constants
-        self.pixelSize = 1.12e-6 ** 2
+        self.pixelSize = 1.12e-6 ** 2  # [m^2]
 
         ## Image dimension settings
         # By default set images to grayscale
@@ -67,7 +67,6 @@ class MOTCamera(picamera.PiCamera):
         self.resolution = (640, 480)
         self.framerate = int(self.cameraConfig["framerate"])
         self.shutter_speed = int(self.cameraConfig["shutter_speed"])
-
 
     def capImg2Win(self, winName="Image Capture", waitTime=1):
         """
@@ -111,8 +110,6 @@ class MOTCamera(picamera.PiCamera):
         label.image = imgtk
         label.configure(image=imgtk)
 
-
-
     def showVid(self, rx=640, ry=480):
         """
         Display continuous video stream on separate opencv window, to 
@@ -151,8 +148,7 @@ class MOTCamera(picamera.PiCamera):
                 cv2.destroyAllWindows()
                 print("Exiting video view")
                 break
-                
-                
+
     def destroyWindows(self, event, x, y, flags, param):
         """
         callback for mouse events, closes openCV window on double left click
@@ -160,7 +156,6 @@ class MOTCamera(picamera.PiCamera):
         if event == cv2.EVENT_LBUTTONDBLCLK:
             print("Double L click detected")
             self.vidOn = False
-
 
     def calibrateShutterSpeed(self, debug=False):
         """
@@ -246,7 +241,25 @@ class MOTCamera(picamera.PiCamera):
             json.dump(self.cameraConfig, outFile)
             
         return self.shutter_speed
-        
+
+    def getAbsImages(self, interval=2, n=13):
+        """
+        Capture images for absorption imaging. Takes multiple images with
+        known time intervals and saves them
+        :param interval: time between snaps in miliseconds
+        :param n: number of images to take, starting from time zero
+        :return:
+        """
+        self.resolution = (608, 272)
+        img = np.empty((272, 608, 3), dtype=np.uint8)
+
+        # Take an image only to warm up the camera, data not used
+        self.capture(img, format="bgr", use_video_port=True)
+
+        for i in range(n):
+            self.capture(img, format="bgr", use_video_port=True)
+            
+
 if __name__ == "__main__":
     cam1 = MOTCamera(0)
     cam1.capImg2Win(f"Before Calibration, shutter speed = {cam1.shutter_speed}")
