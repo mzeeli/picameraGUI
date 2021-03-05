@@ -101,9 +101,9 @@ class MOTCamera(picamera.PiCamera):
 
         label (tkinter.Label) = Target label to display snapped images
         """
-        self.resolution = (608, 272)  # Default resolution to match GUI labels
-        self.img = np.empty((272, 608, 3), dtype=np.uint8)
-
+        self.resolution = (544, 272)  # Default resolution to match GUI labels
+        self.img = np.empty((272, 544, 3), dtype=np.uint8)
+        
         self.capture(self.img, format="rgb", use_video_port=True)
         img = Image.fromarray(self.img)
         imgtk = ImageTk.PhotoImage(image=img)
@@ -172,23 +172,21 @@ class MOTCamera(picamera.PiCamera):
         if debug:
             print("Press lower case 'q' to exit cv2 image views ")
         
-        self.resolution = (608, 272)
-        img = np.empty((272, 608, 3), dtype=np.uint8)
+        self.resolution = (544, 272)
+        img = np.empty((272, 544, 3), dtype=np.uint8)
         
-        # Take an image only to warm up the camera, data not used
-        self.capture(img, format="bgr", use_video_port=True)
-        
-        # Start searching for new shutter speed from 200,000 us
+        # Start searching for new shutter speed from 20,000 us
         # Need starting value to be high
-        startingShutter = 200000
-        self.shutter_speed = 200000
+        startingShutter = 20000
+        self.shutter_speed = 20000
+        
         shutterLim = [0, startingShutter]  # shutter speed limits
+        
+        sleep(1)
         
         # Find shutter_speed value that does not lead to saturation
         foundShutter = False
         
-        # Add tolerance for noise
-
         while not foundShutter:
                         
             # Snap image
@@ -226,14 +224,17 @@ class MOTCamera(picamera.PiCamera):
                 cv2.imshow("mask", mask)
                 cv2.imshow("img", img)
                 
-                k = cv2.waitKey(400)
+                k = cv2.waitKey(0)
                 if k == ord("q"):
                     break
                     
             else:
                 # Even if not debugging still need to delay camera images
-                #for consistency
+                #to give camera time warm up and change shutter speeds
                 sleep(1)
+
+        if debug:
+            cv2.destroyAllWindows()
 
         print(f"new shutter speed: {self.shutter_speed}")
         self.cameraConfig['shutter_speed'] = self.shutter_speed
@@ -250,8 +251,8 @@ class MOTCamera(picamera.PiCamera):
         :param n: number of images to take, starting from time zero
         :return:
         """
-        self.resolution = (608, 272)
-        img = np.empty((272, 608, 3), dtype=np.uint8)
+        self.resolution = (544, 272)
+        img = np.empty((272, 544, 3), dtype=np.uint8)
 
         # Take an image only to warm up the camera, data not used
         self.capture(img, format="bgr", use_video_port=True)

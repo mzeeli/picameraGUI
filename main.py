@@ -16,6 +16,7 @@ import tkinter.font as tkFont
 import numpy as np
 import threading
 import cv2
+import time
 
 import motTemperature
 import motAlignment
@@ -222,7 +223,7 @@ class PiCameraGUI(tk.Frame):
         
         ## Main camera Displays ##
         camDispHeight = 272;
-        camDispWidth = 608;
+        camDispWidth = 544;
 
         cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            width=camDispWidth, height=camDispHeight)
@@ -237,7 +238,7 @@ class PiCameraGUI(tk.Frame):
         threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
         ## Camera Labels ##
-        btnRelx = 0.91
+        btnRelx = 0.868
         distY = 60
         lblOffset = 0.08
         btnH = 60
@@ -249,12 +250,40 @@ class PiCameraGUI(tk.Frame):
         tk.Label(self.mainDisplay, text='cam1', font=camFont, bg='gray83')\
             .place(x=41, y=301)
 
-        ## Calibration Labels
-        calibrateBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, 
+        ## Shutter Speed Tuning ##
+        # Create shutter speed frame
+        ssFrame = tk.Frame(master=self.mainDisplay,
+                                   height=160, width=190,
+                                   highlightbackground="black",
+                                   highlightthicknes=1)
+        # Shutter Section Label
+        tk.Label(ssFrame, text='Shutter Speed (us)', font=camFont)\
+            .place(relx=0.5, rely=0.1, anchor='center')
+            
+        # Value Display
+        currShutterSpeed = f'Current SS: {self.cam1.shutter_speed}'
+        ssLbl = tk.Label(ssFrame, text=currShutterSpeed, font=camFont)
+        ssLbl.place(relx=0.5, rely=0.3, anchor='center')      
+                      
+        # Calibration Button
+        calibrateBtn = tk.Button(ssFrame, relief=tk.GROOVE, 
                                  text="Calibrate",
-                                 command=self.calibrateCameraShutter)
-        calibrateBtn.place(relx=btnRelx, rely=0.1, anchor='center')
-                           
+                                 command=lambda: 
+                                 self.calibrateCameraShutter(ssLbl, ssScale))
+        calibrateBtn.place(relx=0.5, rely=0.58, anchor='center')
+        
+        # Scale
+        ssScale = tk.Scale(ssFrame, from_=0, to=20000, 
+                              orient=tk.HORIZONTAL, length=180,
+                              command=lambda val, lbl=ssLbl: 
+                              self.setShutterSpeed(lbl, val))
+                              
+        ssScale.set(self.cam1.shutter_speed)                      
+        ssScale.place(relx=0.5, rely=0.82, anchor='center')
+        
+        ssFrame.place(relx=btnRelx, rely=0.18, anchor='center')
+
+        
         ## Video Button for cam 0 ##
         vidImgPath = r'./assets/vid_0.png'
         vidImg = resizeImage(vidImgPath, btnH, btnW)
@@ -262,9 +291,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam0.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, rely=0.2, anchor='center')
-        tk.Label(self.mainDisplay, text='Show Vid 0')\
-            .place(relx=btnRelx, rely=0.2+lblOffset, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.4, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Show Vid 0')\
+            # ~ .place(relx=btnRelx, rely=0.2+lblOffset, anchor='center')
 
         ## Snap Image Button ##
         snapImgPath = r'./assets/snap.png'
@@ -273,9 +302,9 @@ class PiCameraGUI(tk.Frame):
                             command=lambda : self.snapImages(cam0Lbl, cam1Lbl))
         snapBtn.image = snapImg
         snapBtn.configure(image=snapImg)
-        snapBtn.place(relx=btnRelx, rely=0.4, anchor='center')
-        tk.Label(self.mainDisplay, text='Snap Pictures')\
-            .place(relx=btnRelx, rely=0.4+lblOffset, anchor='center')
+        snapBtn.place(relx=btnRelx, rely=0.55, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Snap Pictures')\
+            # ~ .place(relx=btnRelx, rely=0.4+lblOffset, anchor='center')
             
         ## Save Button ##
         saveImgPath = r'./assets/save.png'
@@ -284,9 +313,9 @@ class PiCameraGUI(tk.Frame):
                             command=self.saveImage)
         saveBtn.image = saveImg
         saveBtn.configure(image=saveImg)
-        saveBtn.place(relx=btnRelx, rely=0.6, anchor='center')
-        tk.Label(self.mainDisplay, text='Save Images')\
-            .place(relx=btnRelx, rely=0.6+lblOffset, anchor='center')
+        saveBtn.place(relx=btnRelx, rely=0.7, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Save Images')\
+            # ~ .place(relx=btnRelx, rely=0.6+lblOffset, anchor='center')
             
             
         ## Video Button for cam1 ##
@@ -296,9 +325,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam1.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, rely=0.8, anchor='center')
-        tk.Label(self.mainDisplay, text='Show Vid 1')\
-            .place(relx=btnRelx, rely=0.8+lblOffset, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.85, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Show Vid 1')\
+            # ~ .place(relx=btnRelx, rely=0.8+lblOffset, anchor='center')
 
     def show3DWin(self):
         """
@@ -399,14 +428,33 @@ class PiCameraGUI(tk.Frame):
         else:
             return
             
-    def calibrateCameraShutter(self):
+    def setShutterSpeed(self, ssLbl, ss):
+        """
+        Gets shutter speed value from slider and sets it to cameras
+        """        
+        self.cam0.shutter_speed = int(ss)
+        self.cam1.shutter_speed = int(ss)
+
+        ssLbl.configure(text=f'Current SS: {ss}')
+
+    
+    def calibrateCameraShutter(self, ssLbl, ssScale):
         """
         Calibrates shutter speed for cam1, and assigns the same shutter
         speed value to cam0
         """
-        shutterSpeed = self.cam1.calibrateShutterSpeed()
+        
+        ssLbl.configure(text="Calibrating")
+        self.mainDisplay.update()  # Refresh screen to say calibrating
+        
+        # Set upper bound for shutter speed
+        self.cam1.shutter_speed = 20000
+        shutterSpeed = self.cam1.calibrateShutterSpeed()        
         self.cam0.shutter_speed = shutterSpeed
         
+        # Update widgets
+        ssLbl.configure(text=f'Current SS: {shutterSpeed}')
+        ssScale.set(shutterSpeed)
         
 
     def snapImages(self, cam0Lbl, cam1Lbl):
