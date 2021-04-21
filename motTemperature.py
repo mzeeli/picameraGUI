@@ -260,19 +260,20 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         # fit curve
         popt, pcov = curve_fit(Gauss, x, z, bounds=boundaries)
 
-    # optional visualization
-    if visualflag:
-        pyplot.figure(1)
-        pyplot.subplot(212)
-        if not Gauss2Dflag:
+        # optional visualization
+        if visualflag:
+            pyplot.figure(1)
+            pyplot.subplot(212)
+
             pyplot.plot(x, z, 'b+:', label='data')
             pyplot.plot(x, Gauss(x, *popt), 'r-', label='fit')
             pyplot.legend()
-        pyplot.title('Gaussian Fit Trial')
-        pyplot.xlabel('Pixel Number')
-        pyplot.ylabel('Intensity 0 - 255')
-        pyplot.gcf
-        pyplot.show()
+
+            pyplot.title('Gaussian Fit Trial')
+            pyplot.xlabel('Pixel Number')
+            pyplot.ylabel('Intensity 0 - 255')
+            pyplot.gcf
+            pyplot.show()
 
     # Print final sigma results
     if Gauss2Dflag:
@@ -463,9 +464,11 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
 
         pyplot.plot(1000 * t_ar, sig_ar, 'ko', ms=5)
         pyplot.plot(1000 * v_ar, yar, 'b-', lw=3)
-        pyplot.xlabel('time [ms]', fontsize=18)
-        pyplot.ylabel('$\sigma$', fontsize=18)
-        pyplot.xticks(np.arange(0, 26, 2), fontsize=18)
+        pyplot.legend(["Gaussian fits", "Temperature fit"], fontsize=16)
+        pyplot.title('')
+        pyplot.xlabel('time [ms]', fontsize=30)
+        pyplot.ylabel('$\sigma_t$', fontsize=30)
+        pyplot.xticks(np.arange(0, 26, 2), fontsize=20)
         pyplot.yticks([])
         pyplot.tight_layout()
         pyplot.show()
@@ -474,10 +477,20 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
 
 
 if __name__ == "__main__":
-    imgPaths, bgPath = findImgFiles(r"saved_images/MOT1")
-    imgPaths = imgPaths[:-2]
+    # imgPaths, bgPath = findImgFiles(r"saved_images/MOT2")
+    # imgPaths = imgPaths[:-2]
 
-    # imgPaths, bgPath = findImgFiles(r"legacy/Absorption images example")
-    # imgPaths = imgPaths[:-3]  # Ignore last couple of images
+    imgPaths, bgPath = findImgFiles(r"legacy/Absorption images example")
+    imgPaths = imgPaths[:-3]  # Ignore last couple of images
 
-    getTempFromImgList(imgPaths, bgPath)
+    # for i, imgPath in enumerate(imgPaths):
+    #     img = cv2.imread(imgPath, 0)
+    #     img = img[0:750, 360:740]
+    #     cv2.imshow("img", img)
+    #     cv2.waitKey(0)
+    #     outDir = "C:\\Users\\Michael\\OneDrive\\Co-op 5\\NPQO\\Weekly " \
+    #              "Presentations\\Mine\\"
+    #
+    #     cv2.imwrite(f"{outDir}\\{i}.png", img)
+
+    getTempFromImgList(imgPaths, bgPath, showSigmaFit=False)

@@ -99,8 +99,8 @@ def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
     ODarray = np.array([[j if j < OD_upper_bound else 1 for j in i]
                         for i in ODarray])
 
-    atomNum = (px_meter ** 2) * np.sum(
-        ODarray) / crossSec  # Eq 1.5 in Luksch thesis
+    atomNum = (px_meter ** 2) * np.sum(ODarray) / crossSec  # Eq 1.5 in Luksch thesis
+
     print("Atom Number: {0:.3e}".format(atomNum))
 
     if showImg:
