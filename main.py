@@ -14,9 +14,11 @@ from tkinter import filedialog as fd
 import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
+import RPi.GPIO as GPIO
+
 import threading
 import cv2
-
+import time
 import motTemperature
 import motAlignment
 import numAtoms
@@ -39,15 +41,17 @@ class PiCameraGUI(tk.Frame):
         self.debug = debug
         self.camOn = camOn
 
-        self.mWidth = 800  # Set main window width
-        self.mHeight = 600  # Set main window height
+        self.mWidth = 805  # Set main window width
+        self.mHeight = 595  # Set main window height
         self.defaultFont = 'Courier'  # Default font style
         self.log = []
-
+    
         self.temperature = "TBD"  # Temperature
         self.numAtomsAbs = "TBD"  # Number of atoms calculated by absorption
         self.numAtomsFlo = "TBD"  # Number of atoms calculated by fluorescence
 
+        self.status = 1
+        
         if camOn:
             # Pi compute module assigns cam0 port as numerical value 1
             self.cam0 = MOTCamera(1, grayscale=True)
@@ -61,9 +65,9 @@ class PiCameraGUI(tk.Frame):
                                     highlightbackground="black",
                                     highlightthicknes=1)
         self.mainDisplay.pack()
-
+        
         # Default starting window
-        self.showAnalysisWin()
+        self.showAlignmentWin()
 
         # Add the navigation buttons at the bottom
         self.createNavigationBtn()
@@ -74,7 +78,7 @@ class PiCameraGUI(tk.Frame):
         respective window display functions
         """
         btnHeight = 70
-        btnWidth = 160
+        btnWidth = 161
 
         btnFonts = tkFont.Font(family=self.defaultFont, size=15)
 
@@ -188,17 +192,17 @@ class PiCameraGUI(tk.Frame):
 
         # Display temperature data
         tk.Label(self.mainDisplay, text=f'Temperature (K)', font=lblFont)\
-            .place(relx=0.35, rely=0.25, anchor='center')
+            .place(relx=0.33, rely=0.25, anchor='center')
         tempLbl = tk.Label(self.mainDisplay, text=self.temperature,
                            font=dataFont)
-        tempLbl.place(relx=0.35, rely=0.35, anchor='center')
+        tempLbl.place(relx=0.33, rely=0.35, anchor='center')
 
         # Display atom count data
-        tk.Label(self.mainDisplay, text=f'#Atoms', font=lblFont)\
-            .place(relx=0.35, rely=0.65, anchor='center')
+        tk.Label(self.mainDisplay, text=f'#Atoms Abs.', font=lblFont)\
+            .place(relx=0.33, rely=0.65, anchor='center')
         numAtomLbl = tk.Label(self.mainDisplay, text=self.numAtomsAbs,
                               font=dataFont)
-        numAtomLbl.place(relx=0.35, rely=0.75, anchor='center')
+        numAtomLbl.place(relx=0.33, rely=0.75, anchor='center')
 
         # button for temperature calculations
         getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
@@ -222,7 +226,7 @@ class PiCameraGUI(tk.Frame):
         
         ## Main camera Displays ##
         camDispHeight = 272;
-        camDispWidth = 608;
+        camDispWidth = 544;
 
         cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            width=camDispWidth, height=camDispHeight)
@@ -237,7 +241,7 @@ class PiCameraGUI(tk.Frame):
         threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
         ## Camera Labels ##
-        btnRelx = 0.91
+        btnRelx = 0.868
         distY = 60
         lblOffset = 0.08
         btnH = 60
@@ -249,12 +253,40 @@ class PiCameraGUI(tk.Frame):
         tk.Label(self.mainDisplay, text='cam1', font=camFont, bg='gray83')\
             .place(x=41, y=301)
 
-        ## Calibration Labels
-        calibrateBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, 
+        ## Shutter Speed Tuning ##
+        # Create shutter speed frame
+        ssFrame = tk.Frame(master=self.mainDisplay,
+                                   height=160, width=190,
+                                   highlightbackground="black",
+                                   highlightthicknes=1)
+        # Shutter Section Label
+        tk.Label(ssFrame, text='Shutter Speed (us)', font=camFont)\
+            .place(relx=0.5, rely=0.1, anchor='center')
+            
+        # Value Display
+        currShutterSpeed = f'Current SS: {self.cam1.shutter_speed}'
+        ssLbl = tk.Label(ssFrame, text=currShutterSpeed, font=camFont)
+        ssLbl.place(relx=0.5, rely=0.3, anchor='center')      
+                      
+        # Calibration Button
+        calibrateBtn = tk.Button(ssFrame, relief=tk.GROOVE, 
                                  text="Calibrate",
-                                 command=self.calibrateCameraShutter)
-        calibrateBtn.place(relx=btnRelx, rely=0.1, anchor='center')
-                           
+                                 command=lambda: 
+                                 self.calibrateCameraShutter(ssLbl, ssScale))
+        calibrateBtn.place(relx=0.5, rely=0.58, anchor='center')
+        
+        # Scale
+        ssScale = tk.Scale(ssFrame, from_=0, to=20000, 
+                              orient=tk.HORIZONTAL, length=180,
+                              command=lambda val, lbl=ssLbl: 
+                              self.setShutterSpeed(lbl, val))
+                              
+        ssScale.set(self.cam1.shutter_speed)                      
+        ssScale.place(relx=0.5, rely=0.82, anchor='center')
+        
+        ssFrame.place(relx=btnRelx, rely=0.18, anchor='center')
+
+        
         ## Video Button for cam 0 ##
         vidImgPath = r'./assets/vid_0.png'
         vidImg = resizeImage(vidImgPath, btnH, btnW)
@@ -262,9 +294,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam0.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, rely=0.2, anchor='center')
-        tk.Label(self.mainDisplay, text='Show Vid 0')\
-            .place(relx=btnRelx, rely=0.2+lblOffset, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.42, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Show Vid 0')\
+            # ~ .place(relx=btnRelx, rely=0.2+lblOffset, anchor='center')
 
         ## Snap Image Button ##
         snapImgPath = r'./assets/snap.png'
@@ -273,9 +305,9 @@ class PiCameraGUI(tk.Frame):
                             command=lambda : self.snapImages(cam0Lbl, cam1Lbl))
         snapBtn.image = snapImg
         snapBtn.configure(image=snapImg)
-        snapBtn.place(relx=btnRelx, rely=0.4, anchor='center')
-        tk.Label(self.mainDisplay, text='Snap Pictures')\
-            .place(relx=btnRelx, rely=0.4+lblOffset, anchor='center')
+        snapBtn.place(relx=btnRelx, rely=0.57, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Snap Pictures')\
+            # ~ .place(relx=btnRelx, rely=0.4+lblOffset, anchor='center')
             
         ## Save Button ##
         saveImgPath = r'./assets/save.png'
@@ -284,9 +316,9 @@ class PiCameraGUI(tk.Frame):
                             command=self.saveImage)
         saveBtn.image = saveImg
         saveBtn.configure(image=saveImg)
-        saveBtn.place(relx=btnRelx, rely=0.6, anchor='center')
-        tk.Label(self.mainDisplay, text='Save Images')\
-            .place(relx=btnRelx, rely=0.6+lblOffset, anchor='center')
+        saveBtn.place(relx=btnRelx, rely=0.72, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Save Images')\
+            # ~ .place(relx=btnRelx, rely=0.6+lblOffset, anchor='center')
             
             
         ## Video Button for cam1 ##
@@ -296,9 +328,9 @@ class PiCameraGUI(tk.Frame):
                            threading.Thread(target=self.cam1.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
-        vidBtn.place(relx=btnRelx, rely=0.8, anchor='center')
-        tk.Label(self.mainDisplay, text='Show Vid 1')\
-            .place(relx=btnRelx, rely=0.8+lblOffset, anchor='center')
+        vidBtn.place(relx=btnRelx, rely=0.87, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text='Show Vid 1')\
+            # ~ .place(relx=btnRelx, rely=0.8+lblOffset, anchor='center')
 
     def show3DWin(self):
         """
@@ -307,18 +339,24 @@ class PiCameraGUI(tk.Frame):
         geometry. Todo
         """
         self.clearMainDisplay()
-        tk.Label(self.mainDisplay, text="Coming soon")\
+        tk.Label(self.mainDisplay, text="Coming soon (maybe)")\
                 .place(relx=0.5, rely=0.5, anchor='center')
 
     def showLogWin(self):
         """
         Creates widgets associated with the Log window.
         This window is used to show main commands used in the past and
-        system responses. Todo
+        system responses.
         """
         self.clearMainDisplay()
-        tk.Label(self.mainDisplay, text="Coming soon: log window")\
-                .place(relx=0.5, rely=0.5, anchor='center')
+        # ~ tk.Label(self.mainDisplay, text="Coming soon: log window")\
+                # ~ .place(relx=0.5, rely=0.5, anchor='center')
+        # ~ self.logBox.pack()
+        
+        logTable = Table(self.mainDisplay, self.log)
+            
+
+    
 
     def getTemperature(self, tempLbl):
         """
@@ -332,24 +370,30 @@ class PiCameraGUI(tk.Frame):
 
         :return: None
         """
+
         intialDir = r"./saved_Images"
 
         # fd brings up windows explorer to find image files
         fileNames = fd.askopenfilenames(initialdir=intialDir,
-                                        title="Select MOT image files")
+                                        title="Select >2 MOT image files")
 
         bgImgPath = fd.askopenfilename(initialdir=intialDir,
                                        title="Select background image")
+        time.sleep(0.2)  # Give time for GUI to update
 
         # Perform calculations if user selected files
         if len(fileNames) > 2 and bgImgPath:
             print("Running Temperature Calculations")
+            tempLbl.configure(text="Calculating")
+            self.mainDisplay.update()
 
             # Get Temperature from selected images
             T = motTemperature.getTempFromImgList(fileNames, bgImgPath)
 
             # Convert T to string and reduce significant figures
             self.temperature = "{0:.4e}".format(T)
+
+            self.logAction(f"Temperature measured: {self.temperature}")
 
             # Update label temperature display
             tempLbl.configure(text=self.temperature)
@@ -360,7 +404,10 @@ class PiCameraGUI(tk.Frame):
                 print("Please select more than 2 images for more accurate "
                       "temperature calculation")
                 print("Cancelling temperature calculation")
-
+                
+            self.logAction("Cancelled temperature calculation. Incorrect file Selection")
+            self.logAction("Please select > 2 MOT images for temp calculation")
+            tempLbl.configure(text="Invalid Selection")
             return
 
     def getNumAtomsAbs(self, numAtomsLbl):
@@ -386,28 +433,57 @@ class PiCameraGUI(tk.Frame):
 
         bgImgPath = fd.askopenfilename(initialdir=intialDir,
                                        title="Select BG image")
-
+        time.sleep(0.2)  # Give time for GUI to update
         # Only perform calculations if user input paths
         if motImgPath and probeImgPath and bgImgPath:
+            numAtomsLbl.configure(text="Calculating")
+            self.mainDisplay.update()
+            
             self.numAtomsAbs = numAtoms.numAtomsAbs([motImgPath],
-                                                          [probeImgPath],
-                                                          [bgImgPath])
+                                                    [probeImgPath],
+                                                    [bgImgPath])
+                                                    
             self.numAtomsAbs = "{0:.4e}".format(self.numAtomsAbs)
+            
+            self.logAction("#Atom by abssorption calculated: "
+                           f"{self.numAtomsAbs}")
 
             numAtomsLbl.configure(text=self.numAtomsAbs)
 
         else:
+            self.logAction("Cancelled #Atom calc. Incorrect file selection")
+            numAtomsLbl.configure(text="Invalid Selection")
             return
             
-    def calibrateCameraShutter(self):
+    def setShutterSpeed(self, ssLbl, ss):
+        """
+        Gets shutter speed value from slider and sets it to cameras
+        """        
+        self.cam0.shutter_speed = int(ss)
+        self.cam1.shutter_speed = int(ss)
+
+        ssLbl.configure(text=f'Current SS: {ss}')
+
+    
+    def calibrateCameraShutter(self, ssLbl, ssScale):
         """
         Calibrates shutter speed for cam1, and assigns the same shutter
         speed value to cam0
         """
-        shutterSpeed = self.cam1.calibrateShutterSpeed()
+        
+        ssLbl.configure(text="Calibrating")
+        self.mainDisplay.update()  # Refresh screen to say calibrating
+        
+        # Set upper bound for shutter speed
+        self.cam1.shutter_speed = 20000
+        shutterSpeed = self.cam1.calibrateShutterSpeed()        
         self.cam0.shutter_speed = shutterSpeed
         
+        # Update widgets
+        ssLbl.configure(text=f'Current SS: {shutterSpeed}')
+        ssScale.set(shutterSpeed)
         
+        self.logAction(f"Shutter speed calibrated: {shutterSpeed} us")
 
     def snapImages(self, cam0Lbl, cam1Lbl):
         """
@@ -415,31 +491,40 @@ class PiCameraGUI(tk.Frame):
         cam0Lbl (tk.Label): Label to display image of cam0
         cam1Lbl (tk.Label): Label to display image of cam1
         """
-        self.log.append("Snapped Images")
+        self.logAction("Snapped images")
         threading.Thread(target=lambda: self.cam0.showImgOnLbl(cam0Lbl)).start()
         threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
-    def saveImage(self):
+    def saveImage(self, iden=""):
         """
         Saves the last images snapped by the cameras. Grab both images as
         np.arrays and stack them veritcally. Finally saving them by their
         timestamp in the output folder.
+        
+        iden (str): Unique identifier for file name
         """
         # Create timestamp and file path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        savePath = f"{self.output}/{timestamp}.jpg"
+        
+        if iden:
+            savePath = f"{self.output}/{iden}_{timestamp}.jpg"
+
+        else:
+            savePath = f"{self.output}/{timestamp}.jpg"
         
         # Stack cam0 and cam1 images vertically
-        combinedImg = np.concatenate((self.cam1.img, self.cam0.img), axis=0)
+        combinedImg = np.concatenate((self.cam0.img, self.cam1.img), axis=0)
+        
+        _, _, dimensions = self.cam1.img.shape
         
         # If not grayscale, image need to reorder image dimensions to match RGB
-        if combinedImg.shape == (272*2, 608, 3):
+        if dimensions == 3:
             combinedImg = combinedImg[:, :, ::-1]
             
         # Save combined image
         cv2.imwrite(savePath, combinedImg)
-        
-        print(f"Image saved at {savePath}")
+        self.logAction(f"Saved image to {savePath}")
+        # ~ print(f"Image saved at {savePath}")
 
     def clearMainDisplay(self):
         """
@@ -449,19 +534,94 @@ class PiCameraGUI(tk.Frame):
         for widget in self.mainDisplay.winfo_children():
             widget.destroy()
 
+    def logAction(self, msg):
+        # If display log becomes full, move everything up 1 to make space
+        timestamp = datetime.now().strftime("%I:%M:%S %p")
+
+        if len(self.log) >= 21:
+            for i in range(1,20):
+                self.log[i] = self.log[i+1]
+            
+            self.log[20]  = (timestamp, msg)
+
+        # If display log not full just add to end
+        else:
+            self.log.append((timestamp, msg))
+
+
+    def snapBNCImage(self, resX=544, resY=272):
+        """
+        Continuously check BNC connection and take picture when target GPIO 
+        pin is set to high
+        """
+        
+        pinBNC = 20
+        
+        try:
+            GPIO.setmode(GPIO.BCM)  # USE GPIO# as reference 
+            GPIO.setup(pinBNC, GPIO.IN)
+            
+            while self.status:
+                if GPIO.input(pinBNC):
+                    print(50*"-")
+                    print("Snapped image VIA BNC")
+                    self.logAction("Snapped image VIA BNC")
+                    self.cam0.capImgCV2(resX, resY)
+                    self.cam1.capImgCV2(resX, resY)
+                    
+                    #Save newly acquired images with 'BNC' identifier
+                    self.saveImage("BNC")
+                                    
+        finally:
+            # Upon exit reset ports to input to prevent damage
+            GPIO.cleanup()
+                
+
     def onWinClose(self):
         """
         Callback for when the gui is closed. Need to ensure the camera
         resources are released
         """
         print("Exiting Application")
-
+        
+        self.status = 0  # Turn off BNC comms loop
+        
         # Release camera resources
         if self.camOn:
             self.cam0.close()
             self.cam1.close()
 
         self.master.destroy()
+
+class Table():
+    def __init__(self, root, lst):
+        logFont = tkFont.Font(family='Courier', size=13)
+        
+        widths = [18, 61]
+        
+        entry = tk.Label(root, width=widths[0], font=logFont,
+                         text="Timestamp")
+        entry.grid(row=0, column=0)
+        
+        entry = tk.Label(root, width=widths[1], font=logFont,
+                         text="Action")
+        entry.grid(row=0, column=1)
+        
+        numRows = len(lst)
+        numCols = 2
+        
+        for i in range(21):
+            for j in range(numCols):
+                entry = tk.Entry(root, width=widths[j], font=logFont)
+                entry.grid(row=i+1, column=j)
+                
+                if i >= numRows:
+                    entry.insert(tk.END, "")
+                else:
+                    entry.insert(tk.END, lst[i][j])
+
+def getTimestamp():
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 def resizeImage(imgPath, h, w):
     """
@@ -477,15 +637,24 @@ def resizeImage(imgPath, h, w):
     img = img.resize((w, h), Image.ANTIALIAS)
     img = ImageTk.PhotoImage(img)
     return img
-
+            
+        
 
 if __name__ == "__main__":
     window = tk.Tk()
     window.title('PiCamera')
     
+    # Initiate GUI
     gui = PiCameraGUI(window, debug=False, camOn=True)
-    
+
+    # Create upon program exit
     window.protocol("WM_DELETE_WINDOW", gui.onWinClose)
+    
     gui.pack()
     
+    # ~ threading.Thread(target=gui.snapBNCImage).start()
+    
     window.mainloop()
+    
+    
+    
