@@ -154,7 +154,90 @@ def matchPoints(mask1, mask2):
 
     return points[1:, :]
 
-def getMOTCenter(ogImage):
+def getMotCenter(cam0MotImgRaw, cam1MotImgRaw, debug=True):
+    """
+
+    :param cam0MotImgRaw: Raw uncropped image with mot of camera 0
+    :param cam1MotImgRaw: Raw uncropped image with mot of camera 1
+    :param debug:
+    :return:
+    """
+
+    ################################################################
+    # Read background images. These should be constant after we find a good
+    # position for the cameras and find a good shutter speed
+    ################################################################
+    bgImg = cv2.imread(r"./saved_images/Background/background.jpg", 0)
+
+    _, imgH = np.shape(motImg)
+    cam0BgImg = bgImg[:imgH//2, :]
+    cam1BgImg = bgImg[imgH//2:, :]
+
+    ################################################################
+    ## Perform background subtraction
+    ################################################################
+    cam0MotImg = cv2.subtract(cam0MotImgRaw, cam0BgImg)
+    cam1MotImg = cv2.subtract(cam1MotImgRaw, cam1BgImg)
+
+    cam0xROI = 215
+    cam0yROI = 105
+    cam1xROI = 150
+    cam1yROI = 100
+
+
+    cam0MotROI = cam0MotImg[cam0yROI:cam0yROI + 100, cam0xROI:cam0xROI + 100]
+    cam1MotROI = cam1MotImg[cam1yROI:cam1yROI + 100, cam1xROI:cam1xROI + 100]
+
+    cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('cam0MotROI', 400, 400)
+    cv2.imshow("cam0MotROI", cam0MotROI)
+
+    x0, y0, _ = getCenter(cam0MotROI)
+    x1, y1, _ = getCenter(cam1MotROI)
+
+    x0 = x0 + cam0xROI  # overall pixel location outside of just ROI
+    y0 = y0 + cam0yROI  # overall pixel location outside of just ROI
+    x1 = x1 + cam1xROI  # overall pixel location outside of just ROI
+    y1 = y1 + cam1yROI  # overall pixel location outside of just ROI
+
+    if debug:
+        cv2.circle(cam0MotImg, (x0, y0), 6, 260, 1)
+        cv2.circle(cam1MotImg, (x1, y1), 6, 260, 1)
+        cv2.circle(cam0MotImgRaw, (x0, y0), 6, 260, 1)
+        cv2.circle(cam1MotImgRaw, (x1, y1), 6, 260, 1)
+        cv2.circle(cam0BgImg, (x0, y0), 6, 260, 1)
+        cv2.circle(cam1BgImg, (x1, y1), 6, 260, 1)
+
+        motCombined = np.vstack((cam0MotImg, cam1MotImg))
+        motCombinedRaw = np.vstack((cam0MotImgRaw, cam1MotImgRaw))
+        bgCombined = np.vstack((cam0BgImg, cam1BgImg))
+
+        cv2.imshow("MotImg", motCombined)
+        cv2.imshow("MotImgRaw", motCombinedRaw)
+        cv2.imshow("bgCombined", bgCombined)
+
+        cv2.imwrite("test_motCombined.jpg", motCombined)
+        cv2.imwrite("test_motCombinedRaw.jpg", motCombinedRaw)
+        cv2.imwrite("test_bgCombined.jpg", bgCombined)
+
+        cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('cam0MotROI', 400, 400)
+        cv2.namedWindow('cam1MotROI', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('cam1MotROI', 400, 400)
+        cv2.imshow("cam0MotROI", cam0MotROI)
+        cv2.imshow("cam1MotROI", cam1MotROI)
+        cv2.waitKey(0)
+
+    # Todo: figure out how image pixels translate to 3d position
+    motPixelPositions = {
+        "x": x0,
+        "y": x1,
+        "z": (y0+y1)/2,
+    }
+
+    return motPixelPositions
+
+def getCenter(ogImage):
     """
     Calculates the MOT center based on the innermost contour.
     Contour boundaries are created dynamically based on image intensity.
@@ -165,7 +248,7 @@ def getMOTCenter(ogImage):
     Returns centroid position of innermost contour and a copy of the ogImage
     with contours drawn on it
 
-    :param ogImage: original raw image of MOT
+    :param ogImage: original roi of raw image of MOT
 
     :return: x position of mot, y position of mot, contours drawn on a copy of
             ogImage
@@ -181,18 +264,35 @@ def getMOTCenter(ogImage):
 
     cnts = []
     for sig in contourBounds:
-        contour = getContours(sig, img, draw=True)  # Also draws contours
-
+        contour = getContours(sig, img, draw=False)
         if contour:  # If the contour list is not empty, add it
             cnts.append(contour)
 
 
-    # Try to incorporate intensity by factoring in things
     for c in cnts[-1]:
-        m = cv2.moments(c)
-        cX = int(m["m10"] / m["m00"])
-        cY = int(m["m01"] / m["m00"])
 
+        if len(c) <= 2:
+
+            # opencv does not recognize a 2 point contour as closed, so it can't
+            # calculate the image moment. In the case of 2 points in the
+            # contour just calculate it manually
+            # https://en.wikipedia.org/wiki/Image_moment
+            m = {
+                "m00": len(c),
+                "m10": np.sum(c[:, :, 0]),  # sum of pixel x values
+                "m01": np.sum(c[:, :, 1]),  # sum of pixel y values
+            }
+            cX = int(m["m10"] / m["m00"])
+            cY = int(m["m01"] / m["m00"])
+
+        else:
+            # When there are more than 2 points, opencv can recognize
+            # the contour is closed and calculate the moments based on
+            # cv2.moments
+            m = cv2.moments(c)
+
+            cX = int(m["m10"] / m["m00"])
+            cY = int(m["m01"] / m["m00"])
 
     cv2.circle(img, (cX, cY), 1, 0, -1)
     return cX, cY, img
@@ -208,16 +308,19 @@ def getContours(limit, img, draw=False):
 
     :return: list of cv2 contours for the given threshold
     """
-    smoothedImg = cv2.GaussianBlur(img, (7, 7), cv2.BORDER_DEFAULT)
+    smoothedImg = cv2.GaussianBlur(img, (1, 1), cv2.BORDER_DEFAULT)
+
     ret, mask = cv2.threshold(smoothedImg, limit, 255, cv2.THRESH_BINARY)
 
     # Updated versions of findContours removed one of the return parameters
     contours, hierarchy = cv2.findContours(mask, 1, 2)
 
     if draw:
-        cv2.drawContours(img, contours, -1, 0, 1)
-        # cv2.imshow("c", img)
-        # cv2.waitKey(0)
+        # cv2.drawContours(img, contours, -1, 0, 1)
+        cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('mask', 400, 400)
+        cv2.imshow("mask", mask)
+        cv2.waitKey(0)
 
     return contours
 
@@ -232,7 +335,7 @@ def randomTestImages():
     imgPath = r"./saved_images/mot image.png"
     image = cv2.imread(imgPath, 0)
 
-    x, y, image = getMOTCenter(image)
+    x, y, image = getCenter(image)
 
     # Create arbituary fiber and draw on picture
     h, w = image.shape
@@ -261,7 +364,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[205:245, 340:380]
-    x, y, imgResult1 = getMOTCenter(motROI)
+    x, y, imgResult1 = getCenter(motROI)
     cv2.namedWindow('imgResult1', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult1', 300, 300)
     cv2.imshow("imgResult1", imgResult1)
@@ -271,7 +374,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[305:405, 380:480]
-    x, y, imgResult2 = getMOTCenter(motROI)
+    x, y, imgResult2 = getCenter(motROI)
     cv2.namedWindow('imgResult2', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult2', 300, 300)
     cv2.imshow("imgResult2", imgResult2)
@@ -281,7 +384,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[30:100, 350:420]
-    x, y, imgResult3 = getMOTCenter(motROI)
+    x, y, imgResult3 = getCenter(motROI)
     cv2.namedWindow('imgResult3', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult3', 300, 300)
     cv2.imshow("imgResult3", imgResult3)
@@ -291,4 +394,18 @@ def npqoTestImages():
 
 if __name__ == "__main__":
     # create3DView(debug=True)
-    npqoTestImages()
+    # npqoTestImages()
+
+    # motPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
+    # BgPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\background 1.jpg"
+
+    motPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
+
+    motImg = cv2.imread(motPath, 0)
+
+    w, h = np.shape(motImg)
+
+    cam0Img = motImg[:h//2, :]  # cropped picture of mot for cam 0
+    cam1Img = motImg[h//2:, :]  # cropped picture of mot for cam 0
+
+    getMotCenter(cam0Img, cam1Img)

@@ -45,12 +45,18 @@ class PiCameraGUI(tk.Frame):
         self.mHeight = 595  # Set main window height
         self.defaultFont = 'Courier'  # Default font style
         self.log = []
-    
+
+        self.motx = -1  # x position of mot relative to fiber
+        self.moty = -1  # y position of mot relative to fiber
+        self.motz = -1  # z position of mot relative to fiber
+
         self.temperature = "TBD"  # Temperature
         self.numAtomsAbs = "TBD"  # Number of atoms calculated by absorption
         self.numAtomsFlo = "TBD"  # Number of atoms calculated by fluorescence
 
-        self.status = 1
+        self.currWin = ""  # keeps track of which view we are currently on
+
+        self.BNCstatus = 1
         
         if camOn:
             # Pi compute module assigns cam0 port as numerical value 1
@@ -116,6 +122,7 @@ class PiCameraGUI(tk.Frame):
         This window is used to see how the MOT is aligned compared to the fiber
         """
         self.clearMainDisplay()
+        self.currWin = "alignment"  # keep track of current window
 
         # Create right side information panel #
         coordinatesFrame = tk.Frame(self.mainDisplay, height=570, width=225,
@@ -129,25 +136,22 @@ class PiCameraGUI(tk.Frame):
 
         # Get position and number of atoms data
         # Todo get real atom cloud position
+        threading.Thread(target=self.getMotFiberPosition).start()
 
-        imgPath = r"./saved_images/mot image.png"
-        image = cv2.imread(imgPath, 0)
-        x1, z1, _ = motAlignment.getMOTCenter(image)
-
-        positions = np.array([x1, -5, z1])
-        numAtoms = 101367
+        # Get number of atoms data
+        atomCount = 101367  # Placeholder
 
         # Display Data
         dataFont = tkFont.Font(family=self.defaultFont, size=20)
         relYStart = 0.18
         relDist = 0.225  # increments in rely between parameters
-        tk.Label(coordinatesFrame, text=f'x\n{positions[0]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'x\n{self.motx}', font=dataFont)\
             .place(relx=0.5, rely=relYStart, anchor='center')
-        tk.Label(coordinatesFrame, text=f'y\n{positions[1]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'y\n{self.moty}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist, anchor='center')
-        tk.Label(coordinatesFrame, text=f'z\n{positions[2]}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'z\n{self.motz}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist * 2, anchor='center')
-        tk.Label(coordinatesFrame, text=f'#Atoms\n{numAtoms}', font=dataFont)\
+        tk.Label(coordinatesFrame, text=f'#Atoms\n{atomCount}', font=dataFont)\
             .place(relx=0.5, rely=relYStart + relDist * 3, anchor='center')
 
         # Draw MOT on grid #
@@ -163,7 +167,7 @@ class PiCameraGUI(tk.Frame):
 
         # Scale pixel location to real location
         zoom = 1
-        positions = positions*zoom
+        positions = np.array([self.motx, self.moty])*zoom
         # Draw MOT
         motRadius = 15  # Todo dynamic radius?
         alignmentGrid.create_oval(gWidth/2+positions[0]-motRadius,
@@ -181,6 +185,7 @@ class PiCameraGUI(tk.Frame):
         photos
         """
         self.clearMainDisplay()
+        self.currWin = "analysis"  # keep track of current window
 
         # Set fonts to be used in labels
         lblFont = tkFont.Font(family=self.defaultFont, size=25)
@@ -223,7 +228,8 @@ class PiCameraGUI(tk.Frame):
         create the video view popout window
         """
         self.clearMainDisplay()
-        
+        self.currWin = "camera"  # keep track of current window
+
         ## Main camera Displays ##
         camDispHeight = 272;
         camDispWidth = 544;
@@ -276,7 +282,7 @@ class PiCameraGUI(tk.Frame):
         calibrateBtn.place(relx=0.5, rely=0.58, anchor='center')
         
         # Scale
-        ssScale = tk.Scale(ssFrame, from_=0, to=20000, 
+        ssScale = tk.Scale(ssFrame, from_=0, to=5000,
                               orient=tk.HORIZONTAL, length=180,
                               command=lambda val, lbl=ssLbl: 
                               self.setShutterSpeed(lbl, val))
@@ -339,6 +345,8 @@ class PiCameraGUI(tk.Frame):
         geometry. Todo
         """
         self.clearMainDisplay()
+        self.currWin = "3D"  # keep track of current window
+
         tk.Label(self.mainDisplay, text="Coming soon (maybe)")\
                 .place(relx=0.5, rely=0.5, anchor='center')
 
@@ -349,6 +357,8 @@ class PiCameraGUI(tk.Frame):
         system responses.
         """
         self.clearMainDisplay()
+        self.currWin = "log"  # keep track of current window
+
         # ~ tk.Label(self.mainDisplay, text="Coming soon: log window")\
                 # ~ .place(relx=0.5, rely=0.5, anchor='center')
         # ~ self.logBox.pack()
@@ -356,7 +366,28 @@ class PiCameraGUI(tk.Frame):
         logTable = Table(self.mainDisplay, self.log)
             
 
-    
+    def getMotFiberPosition(self, imgXSize=544, imgYSize=272):
+        """
+        Calculates the relative position between the mot and fiber
+
+        :param imgXSize: image x size, should match labels size in camera view
+        :param imgYSize: image y size, should match labels size in camera view
+        :return: x,y, TODO: z
+        """
+        # while we are on the alignment window, continue performing alignment
+        # calculations
+        while self.currWin == "alignment":
+            self.cam0.capImgCV2(imgXSize, imgYSize)  # Capture image to cam0.img
+            self.cam1.capImgCV2(imgXSize, imgYSize)  # Capture image to cam1.img
+
+            motPosition = motAlignment.getMotCenter(self.cam0.img, self.cam1.img)
+
+            # Positions returned as [x, y, z] of mot
+            self.motx = motPosition[0]
+            self.moty = motPosition[1]
+            self.motz = motPosition[2]
+            print(motPosition)
+
 
     def getTemperature(self, tempLbl):
         """
@@ -561,7 +592,7 @@ class PiCameraGUI(tk.Frame):
             GPIO.setmode(GPIO.BCM)  # USE GPIO# as reference 
             GPIO.setup(pinBNC, GPIO.IN)
             
-            while self.status:
+            while self.BNCstatus:
                 if GPIO.input(pinBNC):
                     print(50*"-")
                     print("Snapped image VIA BNC")
@@ -584,7 +615,7 @@ class PiCameraGUI(tk.Frame):
         """
         print("Exiting Application")
         
-        self.status = 0  # Turn off BNC comms loop
+        self.BNCstatus = 0  # Turn off BNC comms loop
         
         # Release camera resources
         if self.camOn:
