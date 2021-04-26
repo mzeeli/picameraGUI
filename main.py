@@ -380,7 +380,7 @@ class PiCameraGUI(tk.Frame):
             self.cam0.capImgCV2(imgXSize, imgYSize)  # Capture image to cam0.img
             self.cam1.capImgCV2(imgXSize, imgYSize)  # Capture image to cam1.img
 
-            motPosition = motAlignment.getMotCenter(self.cam0.img, self.cam1.img)
+            motPosition = motAlignment.getFiberMOTDistance(self.cam0.img, self.cam1.img)
 
             # Positions returned as [x, y, z] of mot
             self.motx = motPosition[0]

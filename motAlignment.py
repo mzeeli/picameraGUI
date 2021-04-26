@@ -154,11 +154,12 @@ def matchPoints(mask1, mask2):
 
     return points[1:, :]
 
-def getMotCenter(cam0MotImgRaw, cam1MotImgRaw, debug=True):
+
+def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=True):
     """
 
-    :param cam0MotImgRaw: Raw uncropped image with mot of camera 0
-    :param cam1MotImgRaw: Raw uncropped image with mot of camera 1
+    :param cam0MotImgRaw: Raw uncropped grayscale image with mot of camera 0
+    :param cam1MotImgRaw: Raw uncropped grayscale image with mot of camera 1
     :param debug:
     :return:
     """
@@ -192,8 +193,8 @@ def getMotCenter(cam0MotImgRaw, cam1MotImgRaw, debug=True):
     cv2.resizeWindow('cam0MotROI', 400, 400)
     cv2.imshow("cam0MotROI", cam0MotROI)
 
-    x0, y0, _ = getCenter(cam0MotROI)
-    x1, y1, _ = getCenter(cam1MotROI)
+    x0, y0, _ = getMOTCenter(cam0MotROI)
+    x1, y1, _ = getMOTCenter(cam1MotROI)
 
     x0 = x0 + cam0xROI  # overall pixel location outside of just ROI
     y0 = y0 + cam0yROI  # overall pixel location outside of just ROI
@@ -237,7 +238,87 @@ def getMotCenter(cam0MotImgRaw, cam1MotImgRaw, debug=True):
 
     return motPixelPositions
 
-def getCenter(ogImage):
+
+def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=True):
+    """
+    A new get mot center code written for a change in the setup on April 23. Instead of having one camera looking at the
+    mot through the coils, both of them now look at them from the front, but at a slightly different angle. Now we need
+    to adjust the code for it. i.e. since now none of the cameras have light scattering problem we don't need background
+    subtraction
+
+    :param cam0MotImgRaw: Raw uncropped grayscale image with mot of camera 0
+    :param cam1MotImgRaw: Raw uncropped grayscale image with mot of camera 1
+    :param debug:
+    :return:
+    """
+
+    ################################################################
+    # Get MOT's location
+    ################################################################
+    cam0xROI = 250
+    cam0yROI = 150
+    cam1xROI = 210
+    cam1yROI = 160
+
+
+    cam0MotROI = cam0MotImgRaw[cam0yROI:cam0yROI + 60, cam0xROI:cam0xROI + 60]
+    cam1MotROI = cam1MotImgRaw[cam1yROI:cam1yROI + 60, cam1xROI:cam1xROI + 60]
+
+    x0, y0, _ = getMOTCenter(cam0MotROI)
+    x1, y1, _ = getMOTCenter(cam1MotROI)
+
+    x0 = x0 + cam0xROI  # overall pixel location outside of just ROI
+    y0 = y0 + cam0yROI  # overall pixel location outside of just ROI
+    x1 = x1 + cam1xROI  # overall pixel location outside of just ROI
+    y1 = y1 + cam1yROI  # overall pixel location outside of just ROI
+
+
+    ################################################################
+    # Get fiber's location
+    ################################################################
+    fiberx0 = getFiberCenter(cam0MotROI)
+    fiberx1 = getFiberCenter(cam1MotROI)
+
+    fiberx0 = fiberx0 + cam0xROI
+    fiberx1 = fiberx1 + cam1xROI
+
+    relativeX = x0 - fiberx0
+    relativeY = x1 - fiberx1
+
+    print(f"relative distances --- x: {relativeX}, y: {relativeY}")
+
+    if debug:
+        cv2.circle(cam0MotImgRaw, (x0, y0), 6, 260, 1)
+        cv2.circle(cam1MotImgRaw, (x1, y1), 6, 260, 1)
+        cv2.line(cam0MotImgRaw, (fiberx0, 0), (fiberx0, 272), (255, 0, 255), 1)
+        cv2.line(cam1MotImgRaw, (fiberx1, 0), (fiberx1, 272), (255, 0, 255), 1)
+
+        motCombinedRaw = np.vstack((cam0MotImgRaw, cam1MotImgRaw))
+
+        cv2.imshow("MotImgRaw", motCombinedRaw)
+
+        cv2.imwrite("test_motCombinedRaw.jpg", motCombinedRaw)
+
+        cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('cam0MotROI', 400, 400)
+        cv2.namedWindow('cam1MotROI', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('cam1MotROI', 400, 400)
+        cv2.imshow("cam0MotROI", cam0MotROI)
+        cv2.imshow("cam1MotROI", cam1MotROI)
+        cv2.waitKey(0)
+
+    # Todo: figure out how image pixels translate to 3d position
+    motPixelPositions = {
+        "x": x0,
+        "y": x1,
+        "z": (y0+y1)/2,
+    }
+
+
+    return relativeX, relativeY
+
+
+def getMOTCenter(img):
     """
     Calculates the MOT center based on the innermost contour.
     Contour boundaries are created dynamically based on image intensity.
@@ -253,18 +334,18 @@ def getCenter(ogImage):
     :return: x position of mot, y position of mot, contours drawn on a copy of
             ogImage
     """
-    img = ogImage.copy()
+    imgCopy = img.copy()
 
     # Dynamic contour band creation
-    upperBound = img.max() * 0.9
-    lowerBound = img.max() * 0.1353 # 1/e^2 convention
+    upperBound = imgCopy.max() * 0.9
+    lowerBound = imgCopy.max() * 0.1353 # 1/e^2 convention
     numContours = 6
     contourBounds = np.linspace(lowerBound, upperBound, numContours)
     # print(contourBounds)
 
     cnts = []
     for sig in contourBounds:
-        contour = getContours(sig, img, draw=False)
+        contour = getContours(sig, imgCopy, draw=False)
         if contour:  # If the contour list is not empty, add it
             cnts.append(contour)
 
@@ -294,8 +375,8 @@ def getCenter(ogImage):
             cX = int(m["m10"] / m["m00"])
             cY = int(m["m01"] / m["m00"])
 
-    cv2.circle(img, (cX, cY), 1, 0, -1)
-    return cX, cY, img
+    cv2.circle(imgCopy, (cX, cY), 1, 0, -1)
+    return cX, cY, imgCopy
 
 def getContours(limit, img, draw=False):
     """
@@ -324,6 +405,18 @@ def getContours(limit, img, draw=False):
 
     return contours
 
+def getFiberCenter(img):
+    """
+
+    :param img: original roi of raw image of MOT
+    :return: x and y position of the fiber tip
+    """
+
+    colSums = np.sum(img, axis=0)
+    x = np.argmax(colSums)
+
+    return x
+
 def randomTestImages():
     """
     Function to analyze random mot images I found and calculate their distance
@@ -335,7 +428,7 @@ def randomTestImages():
     imgPath = r"./saved_images/mot image.png"
     image = cv2.imread(imgPath, 0)
 
-    x, y, image = getCenter(image)
+    x, y, image = getMOTCenter(image)
 
     # Create arbituary fiber and draw on picture
     h, w = image.shape
@@ -364,7 +457,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[205:245, 340:380]
-    x, y, imgResult1 = getCenter(motROI)
+    x, y, imgResult1 = getMOTCenter(motROI)
     cv2.namedWindow('imgResult1', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult1', 300, 300)
     cv2.imshow("imgResult1", imgResult1)
@@ -374,7 +467,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[305:405, 380:480]
-    x, y, imgResult2 = getCenter(motROI)
+    x, y, imgResult2 = getMOTCenter(motROI)
     cv2.namedWindow('imgResult2', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult2', 300, 300)
     cv2.imshow("imgResult2", imgResult2)
@@ -384,7 +477,7 @@ def npqoTestImages():
     image = cv2.imread(imgPath, 0)
     image = cv2.rotate(image, cv2.ROTATE_180)
     motROI = image[30:100, 350:420]
-    x, y, imgResult3 = getCenter(motROI)
+    x, y, imgResult3 = getMOTCenter(motROI)
     cv2.namedWindow('imgResult3', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('imgResult3', 300, 300)
     cv2.imshow("imgResult3", imgResult3)
@@ -399,7 +492,10 @@ if __name__ == "__main__":
     # motPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
     # BgPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\background 1.jpg"
 
-    motPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
+    #######################################################
+    # for when one of the cameras look through the coils
+    #######################################################
+    motPath = r"C:\Users\Michael Li\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
 
     motImg = cv2.imread(motPath, 0)
 
@@ -408,4 +504,42 @@ if __name__ == "__main__":
     cam0Img = motImg[:h//2, :]  # cropped picture of mot for cam 0
     cam1Img = motImg[h//2:, :]  # cropped picture of mot for cam 0
 
-    getMotCenter(cam0Img, cam1Img)
+    relPos1 = getFiberMOTDistance(cam0Img, cam1Img)
+    relPos1 = [5, -4]
+    ###########################################################################
+    # April 23 for when both cameras look at it from the front
+    ###########################################################################
+    motPath = r"C:\Users\Michael Li\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 23 - both cameras in front\20210423_164704.jpg"
+
+    motImg = cv2.imread(motPath, 0)
+
+    w, h = np.shape(motImg)
+
+    cam0Img = motImg[:h//2, :]  # cropped picture of mot for cam 0
+    cam1Img = motImg[h//2:, :]  # cropped picture of mot for cam 0
+
+    relPos2 = getFiberMOTDistanceCamsFront(cam0Img, cam1Img)
+    print(relPos2)
+    angle = 45
+    # Apply rotation matrix, assuming 45 degrees turn
+    relPos2 = [relPos2[0] * np.cos(angle) - relPos2[1] * np.sin(angle),
+               relPos2[0] * np.sin(angle) + relPos2[1] * np.cos(angle)]
+    print(relPos2)
+
+
+    pixel2Micron = 130/1.3
+
+    relPos2 = np.array(relPos2)*pixel2Micron
+    relPos1 = np.array(relPos1)*pixel2Micron
+
+
+    plt.plot(relPos2[0], relPos2[1], ".")
+    plt.plot(relPos1[0], relPos1[1], ".")
+    plt.legend(["Both cameras in front", "One camera through coil"])
+    plt.xlabel("X distance (um)")
+    plt.ylabel("Y distance (um)")
+    plt.xlim([-7*pixel2Micron,7*pixel2Micron])
+    plt.ylim([-7*pixel2Micron,7*pixel2Micron])
+    plt.show()
+
+
