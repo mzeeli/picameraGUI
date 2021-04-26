@@ -136,15 +136,17 @@ class PiCameraGUI(tk.Frame):
 
         # Get position and number of atoms data
         # Todo get real atom cloud position
-        threading.Thread(target=self.getMotFiberPosition).start()
-
+        getPosBtn = tk.Button(coordinatesFrame, text='Get Positions', 
+                    font=tkFont.Font(family=self.defaultFont, size=15),
+                    command= lambda: threading.Thread(target=self.getMotFiberPosition).start())
+        getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
         # Get number of atoms data
         atomCount = 101367  # Placeholder
 
         # Display Data
         dataFont = tkFont.Font(family=self.defaultFont, size=20)
         relYStart = 0.18
-        relDist = 0.225  # increments in rely between parameters
+        relDist = 0.2  # increments in rely between parameters
         tk.Label(coordinatesFrame, text=f'x\n{self.motx}', font=dataFont)\
             .place(relx=0.5, rely=relYStart, anchor='center')
         tk.Label(coordinatesFrame, text=f'y\n{self.moty}', font=dataFont)\
@@ -229,6 +231,8 @@ class PiCameraGUI(tk.Frame):
         """
         self.clearMainDisplay()
         self.currWin = "camera"  # keep track of current window
+
+        
 
         ## Main camera Displays ##
         camDispHeight = 272;
@@ -376,11 +380,12 @@ class PiCameraGUI(tk.Frame):
         """
         # while we are on the alignment window, continue performing alignment
         # calculations
+        print("Started mot-fiber distance calculations")
         while self.currWin == "alignment":
             self.cam0.capImgCV2(imgXSize, imgYSize)  # Capture image to cam0.img
             self.cam1.capImgCV2(imgXSize, imgYSize)  # Capture image to cam1.img
 
-            motPosition = motAlignment.getFiberMOTDistance(self.cam0.img, self.cam1.img)
+            motPosition = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img, self.cam1.img)
 
             # Positions returned as [x, y, z] of mot
             self.motx = motPosition[0]

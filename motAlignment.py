@@ -169,14 +169,14 @@ def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=True):
     # position for the cameras and find a good shutter speed
     ################################################################
     bgImg = cv2.imread(r"./saved_images/Background/background.jpg", 0)
-
-    _, imgH = np.shape(motImg)
+    _, imgH = np.shape(bgImg)
     cam0BgImg = bgImg[:imgH//2, :]
     cam1BgImg = bgImg[imgH//2:, :]
 
     ################################################################
     ## Perform background subtraction
     ################################################################
+    print(np.shape(cam0MotImgRaw))
     cam0MotImg = cv2.subtract(cam0MotImgRaw, cam0BgImg)
     cam1MotImg = cv2.subtract(cam1MotImgRaw, cam1BgImg)
 

@@ -76,6 +76,7 @@ class MOTCamera(picamera.PiCamera):
         self.resolution = (resX, resY)
         self.img = np.empty((resY, resX, 3), dtype=np.uint8)
         self.capture(self.img, format="bgr", use_video_port=True)
+        self.img = self.img[:,:,0]
     
         
     def capImg2Win(self, winName="Image Capture", waitTime=1):
@@ -95,9 +96,8 @@ class MOTCamera(picamera.PiCamera):
         """
         self.capImgCV2()
 
-        print(f"255 exist: {255 in self.img}")
-
         cv2.imshow(winName, self.img)
+        cv2.waitKey(0)
         
         # ~ self.start_preview()
         # ~ sleep(waitTime)
