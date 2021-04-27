@@ -73,12 +73,25 @@ class MOTCamera(picamera.PiCamera):
         """
         Captures a cv2 img in 'bgr' and saves it in field self.img
         """
-        self.resolution = (resX, resY)
-        self.img = np.empty((resY, resX, 3), dtype=np.uint8)
-        self.capture(self.img, format="bgr", use_video_port=True)
-        self.img = self.img[:,:,0]
-    
+        if self.resolution != (resX, resY):
+            self.resolution = (resX, resY)
         
+        ########################################
+        # Method 1: capture
+        ########################################
+        # ~ self.img = np.empty((resY, resX, 3), dtype=np.uint8)
+        # ~ self.capture(self.img, format="bgr", use_video_port=True)
+        # ~ self.img = self.img[:,:,0]
+        
+        ########################################
+        # Method 2: capture_continuous
+        # Turns out it is faster to use capture_sequence to save the image
+        # Then read it rather than using capture to a variable
+        ########################################
+
+        self.capture_sequence([f"./saved_images/last_cam{self.camNum}.jpg"], use_video_port=True)
+        self.img = cv2.imread(f"./saved_images/last_cam{self.camNum}.jpg", 0)
+
     def capImg2Win(self, winName="Image Capture", waitTime=1):
         """
         Captures still image with picameras and display them to a cv2 window
@@ -102,6 +115,10 @@ class MOTCamera(picamera.PiCamera):
         # ~ self.start_preview()
         # ~ sleep(waitTime)
         # ~ self.capture('foo.jpg')
+        
+    def capImg2File(self, fileName):
+        self.capture_sequence(fileName, use_video_port=True)                
+
     
     def showImgOnLbl(self, label):
         """
@@ -130,7 +147,6 @@ class MOTCamera(picamera.PiCamera):
         self.vidOn = True
         
         rawCapture = PiRGBArray(self)
-        sleep(1)
                 
         for frame in self.capture_continuous(rawCapture, format="bgr", 
                                              use_video_port=True):

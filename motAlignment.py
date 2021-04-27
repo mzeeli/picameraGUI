@@ -239,7 +239,7 @@ def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=True):
     return motPixelPositions
 
 
-def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=True):
+def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     """
     A new get mot center code written for a change in the setup on April 23. Instead of having one camera looking at the
     mot through the coils, both of them now look at them from the front, but at a slightly different angle. Now we need

@@ -232,7 +232,11 @@ class PiCameraGUI(tk.Frame):
         self.clearMainDisplay()
         self.currWin = "camera"  # keep track of current window
 
-        
+        # Wait for camera resource to close on other threads, if BNC 
+        # checking thread is also running it should be != 2, as you have 
+        # the main gui thread and the BNC thread
+        while threading.active_count() != 1:  
+            time.sleep(0.5)
 
         ## Main camera Displays ##
         camDispHeight = 272;
@@ -381,17 +385,34 @@ class PiCameraGUI(tk.Frame):
         # while we are on the alignment window, continue performing alignment
         # calculations
         print("Started mot-fiber distance calculations")
+        
+        # Increase framerates for alignment
+        self.cam0.framerate = 100
+        self.cam1.framerate = 100
+        
         while self.currWin == "alignment":
-            self.cam0.capImgCV2(imgXSize, imgYSize)  # Capture image to cam0.img
-            self.cam1.capImgCV2(imgXSize, imgYSize)  # Capture image to cam1.img
+            try:              
+                startTime = time.time()  
+                # Capture image to cam0.img
+                # ~ # start image capture on separate thread to take image faster
+                cam0Thread = threading.Thread(target=self.cam0.capImgCV2,
+                                              args=(imgXSize, imgYSize,))
+                cam0Thread.start()
+                # ~ self.cam0.capImgCV2(imgXSize, imgYSize)
 
-            motPosition = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img, self.cam1.img)
+                # Capture image to cam1.img
+                self.cam1.capImgCV2(imgXSize, imgYSize)
+                
+                cam0Thread.join() # wait for both images to be captured
+                print("elapsed time: ", time.time()- startTime, "s")
 
-            # Positions returned as [x, y, z] of mot
-            self.motx = motPosition[0]
-            self.moty = motPosition[1]
-            self.motz = motPosition[2]
-            print(motPosition)
+                motPosition = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img, self.cam1.img)
+                print("elapsed time: ", time.time()- startTime, "s")
+                print("-"*40)
+                
+            except Exception as e:
+                print("-----Couldn't find mot-----")
+                print("Error", e)
 
 
     def getTemperature(self, tempLbl):
