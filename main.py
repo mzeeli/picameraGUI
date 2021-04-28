@@ -134,27 +134,29 @@ class PiCameraGUI(tk.Frame):
         tk.Label(coordinatesFrame, text='MOT Position', font=motLblFont)\
             .place(relx=0.5, rely=0.05, anchor='center')
 
-        # Get position and number of atoms data
-        # Todo get real atom cloud position
-        getPosBtn = tk.Button(coordinatesFrame, text='Get Positions', 
-                    font=tkFont.Font(family=self.defaultFont, size=15),
-                    command= lambda: threading.Thread(target=self.getMotFiberPosition).start())
-        getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
-        # Get number of atoms data
-        atomCount = 101367  # Placeholder
-
         # Display Data
         dataFont = tkFont.Font(family=self.defaultFont, size=20)
-        relYStart = 0.18
-        relDist = 0.2  # increments in rely between parameters
-        tk.Label(coordinatesFrame, text=f'x\n{self.motx}', font=dataFont)\
-            .place(relx=0.5, rely=relYStart, anchor='center')
-        tk.Label(coordinatesFrame, text=f'y\n{self.moty}', font=dataFont)\
-            .place(relx=0.5, rely=relYStart + relDist, anchor='center')
-        tk.Label(coordinatesFrame, text=f'z\n{self.motz}', font=dataFont)\
-            .place(relx=0.5, rely=relYStart + relDist * 2, anchor='center')
-        tk.Label(coordinatesFrame, text=f'#Atoms\n{atomCount}', font=dataFont)\
-            .place(relx=0.5, rely=relYStart + relDist * 3, anchor='center')
+        btnRelYStart = 0.18
+        btnRelDist = 0.2  # increments in rely between parameters
+        xLbl = tk.Label(coordinatesFrame, text=f'x\n{self.motx}', font=dataFont)
+        xLbl.place(relx=0.5, rely=btnRelYStart, anchor='center')
+        yLbl = tk.Label(coordinatesFrame, text=f'y\n{self.moty}', font=dataFont)
+        yLbl.place(relx=0.5, rely=btnRelYStart + btnRelDist, anchor='center')
+        zLbl = tk.Label(coordinatesFrame, text=f'z\n{self.motz}', font=dataFont)
+        zLbl.place(relx=0.5, rely=btnRelYStart + btnRelDist * 2, anchor='center')
+        nLbl = tk.Label(coordinatesFrame, text=f'#Atoms\n{111}',font=dataFont)
+        nLbl.place(relx=0.5, rely=btnRelYStart + btnRelDist * 3, anchor='center')
+
+        # Get position and number of atoms data
+        # Todo get real atom cloud position
+
+        getPosBtn = tk.Button(coordinatesFrame, text='Get Positions',
+                              font=motLblFont, command=lambda:
+                              threading.Thread(
+                                  target=self.getMotFiberPosition,
+                                  args=(xLbl, yLbl, zLbl, nLbl)).start())
+
+        getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
 
         # Draw MOT on grid #
         gHeight = 570  # Grid height
@@ -374,7 +376,8 @@ class PiCameraGUI(tk.Frame):
         logTable = Table(self.mainDisplay, self.log)
             
 
-    def getMotFiberPosition(self, imgXSize=544, imgYSize=272):
+    def getMotFiberPosition(self, xLbl, yLbl, zLbl, nLbl, imgXSize=544,
+                            imgYSize=272):
         """
         Calculates the relative position between the mot and fiber
 
@@ -406,10 +409,14 @@ class PiCameraGUI(tk.Frame):
                 cam0Thread.join() # wait for both images to be captured
                 print("elapsed time: ", time.time()- startTime, "s")
 
-                motPosition = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img, self.cam1.img)
+                x, y = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img,
+                                                                 self.cam1.img)
                 print("elapsed time: ", time.time()- startTime, "s")
                 print("-"*40)
-                
+
+                xLbl.configure(text=x)
+                yLbl.configure(text=y)
+
             except Exception as e:
                 print("-----Couldn't find mot-----")
                 print("Error", e)

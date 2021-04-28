@@ -9,6 +9,13 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+# ROIs for when both cameras are in front
+cam0xROI = 250
+cam0yROI = 150
+cam1xROI = 210
+cam1yROI = 160
+lengthROI = 60
+
 def create3DView(debug=False):
     """
     Test function to create a 3D scene based on two-view geometry
@@ -255,14 +262,11 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     ################################################################
     # Get MOT's location
     ################################################################
-    cam0xROI = 250
-    cam0yROI = 150
-    cam1xROI = 210
-    cam1yROI = 160
+    cam0MotROI = cam0MotImgRaw[cam0yROI : cam0yROI + lengthROI,
+                               cam0xROI : cam0xROI + lengthROI]
 
-
-    cam0MotROI = cam0MotImgRaw[cam0yROI:cam0yROI + 60, cam0xROI:cam0xROI + 60]
-    cam1MotROI = cam1MotImgRaw[cam1yROI:cam1yROI + 60, cam1xROI:cam1xROI + 60]
+    cam1MotROI = cam1MotImgRaw[cam1yROI : cam1yROI + lengthROI,
+                               cam1xROI : cam1xROI + lengthROI]
 
     x0, y0, _ = getMOTCenter(cam0MotROI)
     x1, y1, _ = getMOTCenter(cam1MotROI)

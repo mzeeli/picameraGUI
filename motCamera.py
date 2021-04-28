@@ -16,6 +16,8 @@ import numpy as np
 import threading
 import json
 
+import motAlignment
+
 class MOTCamera(picamera.PiCamera):
     
     def __init__(self, camera_num, grayscale=True):
@@ -127,6 +129,17 @@ class MOTCamera(picamera.PiCamera):
         label (tkinter.Label) = Target label to display snapped images
         """
         self.capImgCV2(544, 272)
+
+        roiLength = motAlignment.lengthROI
+        if self.camNum == 1:
+            roiX = motAlignment.cam1xROI
+            roiY = motAlignment.cam1yROI
+        else:
+            roiX = motAlignment.cam0xROI
+            roiY = motAlignment.cam0yROI
+
+        cv2.rectangle(self.img, (roiX, roiY), (roiX+roiLength, roiY+roiLength),
+                      255, 2)
 
         img = Image.fromarray(self.img)
         imgtk = ImageTk.PhotoImage(image=img)
