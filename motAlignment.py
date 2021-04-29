@@ -289,7 +289,7 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     relativeX = x0 - fiberx0
     relativeY = x1 - fiberx1
 
-    print(f"relative distances --- x: {relativeX}, y: {relativeY}")
+    # ~ print(f"relative distances --- x: {relativeX}, y: {relativeY}")
 
     if debug:
         cv2.circle(cam0MotImgRaw, (x0, y0), 6, 260, 1)

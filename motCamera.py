@@ -13,7 +13,6 @@ import os
 import picamera
 import cv2
 import numpy as np
-import threading
 import json
 
 import motAlignment
@@ -310,4 +309,3 @@ if __name__ == "__main__":
     cam1.capImg2Win(f"After Calibration1, shutter speed = {cam1.shutter_speed}")
     cv2.waitKey(0)
     
-    # ~ threading.Thread(target=cam1.showVid).start()

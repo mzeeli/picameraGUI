@@ -147,17 +147,6 @@ class PiCameraGUI(tk.Frame):
         nLbl = tk.Label(coordinatesFrame, text=f'#Atoms\n{111}',font=dataFont)
         nLbl.place(relx=0.5, rely=btnRelYStart + btnRelDist * 3, anchor='center')
 
-        # Get position and number of atoms data
-        # Todo get real atom cloud position
-
-        getPosBtn = tk.Button(coordinatesFrame, text='Get Positions',
-                              font=motLblFont, command=lambda:
-                              threading.Thread(
-                                  target=self.getMotFiberPosition,
-                                  args=(xLbl, yLbl, zLbl, nLbl)).start())
-
-        getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
-
         # Draw MOT on grid #
         gHeight = 570  # Grid height
         gWidth = 550  # Grid width
@@ -169,16 +158,16 @@ class PiCameraGUI(tk.Frame):
         alignmentGrid.create_line(0, gHeight/2, gWidth, gHeight/2)
         alignmentGrid.create_line(gWidth/2, 0, gWidth/2, gHeight)
 
-        # Scale pixel location to real location
-        zoom = 1
-        positions = np.array([self.motx, self.moty])*zoom
-        # Draw MOT
-        motRadius = 15  # Todo dynamic radius?
-        alignmentGrid.create_oval(gWidth/2+positions[0]-motRadius,
-                                  gHeight/2-positions[1]-motRadius,
-                                  gWidth/2+positions[0]+motRadius,
-                                  gHeight/2-positions[1]+motRadius,
-                                  fill='slate gray')
+        # Get position and number of atoms data
+        # Todo get real atom cloud position
+        posThread = threading.Thread(target=self.getMotFiberPosition,
+                                     args=(xLbl, yLbl, zLbl, nLbl, alignmentGrid))
+                                     
+        btnFont = tkFont.Font(family=self.defaultFont, size=15)
+        getPosBtn = tk.Button(coordinatesFrame, text='Get Positions',
+                              font=btnFont, 
+                              command=lambda: posThread.start())
+        getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
 
     def showAnalysisWin(self):
         """
@@ -233,13 +222,13 @@ class PiCameraGUI(tk.Frame):
         """
         self.clearMainDisplay()
         self.currWin = "camera"  # keep track of current window
-
+        
         # Wait for camera resource to close on other threads, if BNC 
         # checking thread is also running it should be != 2, as you have 
         # the main gui thread and the BNC thread
-        while threading.active_count() != 1:  
-            time.sleep(0.5)
-
+        while threading.active_count() != 1:
+            time.sleep(0.2)
+            
         ## Main camera Displays ##
         camDispHeight = 272;
         camDispWidth = 544;
@@ -376,7 +365,7 @@ class PiCameraGUI(tk.Frame):
         logTable = Table(self.mainDisplay, self.log)
             
 
-    def getMotFiberPosition(self, xLbl, yLbl, zLbl, nLbl, imgXSize=544,
+    def getMotFiberPosition(self, xLbl, yLbl, zLbl, nLbl, canvas, imgXSize=544,
                             imgYSize=272):
         """
         Calculates the relative position between the mot and fiber
@@ -393,34 +382,61 @@ class PiCameraGUI(tk.Frame):
         self.cam0.framerate = 100
         self.cam1.framerate = 100
         
+        gHeight = 570  # Grid height
+        gWidth = 550  # Grid width
+        motRadius = 15  # Todo dynamic radius?
+
+        # Create initial mot on canvas but make it off screen
+        mot = canvas.create_oval(gWidth/2+1000-motRadius,
+                                 gHeight/2-1000-motRadius,
+                                 gWidth/2+1000+motRadius,
+                                 gHeight/2-1000+motRadius,
+                                 fill='slate gray')
+
         while self.currWin == "alignment":
             try:              
-                startTime = time.time()  
+                startTime = time.time()
                 # Capture image to cam0.img
-                # ~ # start image capture on separate thread to take image faster
+                # start image capture on separate thread to take image faster
                 cam0Thread = threading.Thread(target=self.cam0.capImgCV2,
                                               args=(imgXSize, imgYSize,))
                 cam0Thread.start()
-                # ~ self.cam0.capImgCV2(imgXSize, imgYSize)
 
                 # Capture image to cam1.img
                 self.cam1.capImgCV2(imgXSize, imgYSize)
                 
                 cam0Thread.join() # wait for both images to be captured
-                print("elapsed time: ", time.time()- startTime, "s")
 
                 x, y = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img,
                                                                  self.cam1.img)
-                print("elapsed time: ", time.time()- startTime, "s")
-                print("-"*40)
+                                                                 
+                # Check again if currently on alignment view and edit labels
+                if self.currWin == "alignment": 
+                    
+                    # Edit numerical labels
+                    xLbl.configure(text=f"x\n{x}")
+                    yLbl.configure(text=f"y\n{y}")
 
-                xLbl.configure(text=x)
-                yLbl.configure(text=y)
+
+                    # Edit MOT position on 2d grid
+                    canvas.coords(mot, 
+                                  gWidth/2+x-motRadius,
+                                  gHeight/2-y-motRadius,
+                                  gWidth/2+x+motRadius,
+                                  gHeight/2-y+motRadius)
+                    
+                    time.sleep(0.15)
+                    print("total time:", time.time()-startTime)
+                    
+                else:
+                    break
 
             except Exception as e:
                 print("-----Couldn't find mot-----")
                 print("Error", e)
-
+                
+        print("Exiting mot-fiber distance calc")
+                
 
     def getTemperature(self, tempLbl):
         """
