@@ -7,13 +7,14 @@ Author: Michael Li
 
 from picamera.array import PiRGBArray
 from PIL import ImageTk, Image
-from time import sleep
 
+import time
 import os
 import picamera
 import cv2
 import numpy as np
 import json
+import io
 
 import motAlignment
 
@@ -52,6 +53,9 @@ class MOTCamera(picamera.PiCamera):
         self.vidOn = False  # Tracks if video is recorded on a cv2 window
         self.img = None  # field to store images
         
+        # Connect to video stream
+        self.stream = io.BytesIO()
+        
         ## Camera Hardware Constants
         self.pixelSize = 1.12e-6 ** 2  # [m^2]
 
@@ -74,6 +78,7 @@ class MOTCamera(picamera.PiCamera):
         """
         Captures a cv2 img in 'bgr' and saves it in field self.img
         """
+
         if self.resolution != (resX, resY):
             self.resolution = (resX, resY)
         
@@ -85,14 +90,20 @@ class MOTCamera(picamera.PiCamera):
         # ~ self.img = self.img[:,:,0]
         
         ########################################
-        # Method 2: capture_continuous
+        # Method 2: capture_sequence
         # Turns out it is faster to use capture_sequence to save the image
         # Then read it rather than using capture to a variable
         ########################################
-
         self.capture_sequence([f"./saved_images/last_cam{self.camNum}.jpg"], use_video_port=True)
         self.img = cv2.imread(f"./saved_images/last_cam{self.camNum}.jpg", 0)
-
+        
+        ########################################
+        # Method 3: capture with io stream
+        ########################################
+        # ~ self.capture(self.stream, format="jpeg")
+        # ~ data = np.frombuffer(self.stream.getvalue(), dtype=np.uint8)
+        # ~ self.img = cv2.imdecode(data, 0)
+        
     def capImg2Win(self, winName="Image Capture", waitTime=1):
         """
         Captures still image with picameras and display them to a cv2 window
@@ -296,16 +307,34 @@ class MOTCamera(picamera.PiCamera):
             
 
 if __name__ == "__main__":
-    cam1 = MOTCamera(0)
-    cam1.capImg2Win(f"Before Calibration, shutter speed = {cam1.shutter_speed}")
+    #################################################
+    # calibration tests
+    #################################################
+    # ~ cam1 = MOTCamera(0)
+    # ~ cam1.capImg2Win(f"Before Calibration, shutter speed = {cam1.shutter_speed}")
     
     # ~ cam1.showVid()
     
-    cam1.calibrateShutterSpeed(debug=True)
+    # ~ cam1.calibrateShutterSpeed(debug=True)
     
     
-    cam1.capImg2Win(f"After Calibration0, shutter speed = {cam1.shutter_speed}")
-    sleep(1)
-    cam1.capImg2Win(f"After Calibration1, shutter speed = {cam1.shutter_speed}")
+    # ~ cam1.capImg2Win(f"After Calibration0, shutter speed = {cam1.shutter_speed}")
+    # ~ sleep(1)
+    # ~ cam1.capImg2Win(f"After Calibration1, shutter speed = {cam1.shutter_speed}")
+    # ~ cv2.waitKey(0)
+    
+    #################################################
+    # io stream tests
+    #################################################
+    cam1 = MOTCamera(0)
+    stream = io.BytesIO()
+    
+    # ~ cam1.start_preview()
+    time.sleep(2)
+    cam1.capture(stream, format="jpeg")
+    
+    data = np.frombuffer(stream.getvalue(), dtype=np.uint8)
+    img = cv2.imdecode(data, 0)
+    print(np.shape(img))
+    cv2.imshow("img", img)
     cv2.waitKey(0)
-    

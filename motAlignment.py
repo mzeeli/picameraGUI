@@ -296,12 +296,19 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
         cv2.circle(cam1MotImgRaw, (x1, y1), 6, 260, 1)
         cv2.line(cam0MotImgRaw, (fiberx0, 0), (fiberx0, 272), (255, 0, 255), 1)
         cv2.line(cam1MotImgRaw, (fiberx1, 0), (fiberx1, 272), (255, 0, 255), 1)
-
+        
+        cv2.rectangle(cam0MotImgRaw, (cam0xROI, cam0yROI), 
+                      (cam0xROI+lengthROI, cam0yROI+lengthROI),
+                      255, 2)
+        cv2.rectangle(cam1MotImgRaw, (cam1xROI, cam1yROI), 
+                      (cam1xROI+lengthROI, cam1yROI+lengthROI),
+                      255, 2)
+                      
         motCombinedRaw = np.vstack((cam0MotImgRaw, cam1MotImgRaw))
-
+        
+        cv2.namedWindow('MotImgRaw', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('MotImgRaw', 800, 800)
         cv2.imshow("MotImgRaw", motCombinedRaw)
-
-        cv2.imwrite("test_motCombinedRaw.jpg", motCombinedRaw)
 
         cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('cam0MotROI', 400, 400)
@@ -309,6 +316,7 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
         cv2.resizeWindow('cam1MotROI', 400, 400)
         cv2.imshow("cam0MotROI", cam0MotROI)
         cv2.imshow("cam1MotROI", cam1MotROI)
+        
         cv2.waitKey(0)
 
     # Todo: figure out how image pixels translate to 3d position

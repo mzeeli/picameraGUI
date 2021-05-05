@@ -385,6 +385,7 @@ class PiCameraGUI(tk.Frame):
         gHeight = 570  # Grid height
         gWidth = 550  # Grid width
         motRadius = 15  # Todo dynamic radius?
+        zoom = 3  # arbituary zoom factor
 
         # Create initial mot on canvas but make it off screen
         mot = canvas.create_oval(gWidth/2+1000-motRadius,
@@ -408,8 +409,9 @@ class PiCameraGUI(tk.Frame):
                 cam0Thread.join() # wait for both images to be captured
 
                 x, y = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img,
-                                                                 self.cam1.img)
-                                                                 
+                                                                 self.cam1.img,
+                                                                 debug=False)
+                                                                        
                 # Check again if currently on alignment view and edit labels
                 if self.currWin == "alignment": 
                     
@@ -420,12 +422,14 @@ class PiCameraGUI(tk.Frame):
 
                     # Edit MOT position on 2d grid
                     canvas.coords(mot, 
-                                  gWidth/2+x-motRadius,
-                                  gHeight/2-y-motRadius,
-                                  gWidth/2+x+motRadius,
-                                  gHeight/2-y+motRadius)
-                    
-                    time.sleep(0.15)
+                                  gWidth/2+x*zoom-motRadius,
+                                  gHeight/2-y*zoom-motRadius,
+                                  gWidth/2+x*zoom+motRadius,
+                                  gHeight/2-y*zoom+motRadius)
+                                  
+                    # sleep between frames to reduce load on memory
+                    # otherwise cameras may crash
+                    time.sleep(0.08)  
                     print("total time:", time.time()-startTime)
                     
                 else:
