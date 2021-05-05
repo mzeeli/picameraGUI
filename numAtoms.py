@@ -9,7 +9,7 @@ system
 
 The fluorescent imaging technique #atom script follows
 
-Last Updated: Winter, 2021
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 
@@ -23,7 +23,6 @@ from cesium import Cesium
 from motCamera import MOTCamera
 
 cs = Cesium()
-
 
 def imgavr(filelist, y):  # function to fit to sigma array
     """

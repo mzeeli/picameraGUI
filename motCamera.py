@@ -1,7 +1,9 @@
 """
 Script for MOTCamera object - child of PiCamera class
 
-Last Updated: Winter, 2021
+Camera class wrapper for the more commonly known PiCamera class
+
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 

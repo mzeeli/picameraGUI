@@ -1,7 +1,10 @@
 """
-Calculate mot position given images
+Calculate mot position given two pi camera images
 
-Last Updated: Winter, 2021
+The Pi cameras are expected to be placed at roughly 90 degrees from each 
+other
+
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 
@@ -10,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ROIs for when both cameras are in front
+# Determined these values just based on trial and error
 cam0xROI = 245
 cam0yROI = 130
 cam1xROI = 205
@@ -164,8 +168,8 @@ def matchPoints(mask1, mask2):
 def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     """
     A new get mot center code written for a change in the setup on April 23. Instead of having one camera looking at the
-    mot through the coils, both of them now look at them from the front, but at a slightly different angle. Now we need
-    to adjust the code for it. i.e. since now none of the cameras have light scattering problem we don't need background
+    mot through the coils, both of them now look at them from the front but at a slightly different angle. Now we need
+    to adjust the code for it. i.e. since now none of the cameras have light scattering problems we don't need background
     subtraction
 
     :param cam0MotImgRaw: Raw uncropped grayscale image with mot of camera 0
@@ -273,9 +277,10 @@ def getMOTCenter(img):
 
     :param ogImage: original roi of raw image of MOT
 
-    :return: x position of mot, y position of mot, contours drawn on a copy of
-            ogImage
+    :return: x position of mot, y position of mot, image of mot with 
+             contours drawn on them
     """
+    
     imgCopy = img.copy()
 
     # Dynamic contour band creation

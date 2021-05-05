@@ -2,7 +2,7 @@
 Cesium atom class, contains relavent information to the cesium atom such as
 mass, linewidth, saturation intensity, etc...
 
-Last Updated: Winter, 2021
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 

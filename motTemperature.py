@@ -10,7 +10,7 @@ for a different setup. I cleaned it up and modified it to fit the raspberry pi
 system.
 
 
-Last Updated: Winter, 2021
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 

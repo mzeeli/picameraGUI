@@ -1,9 +1,9 @@
 """
 Main script for raspberry pi camera GUI:
 Creates tkinter GUI application to access mot information with picameras.
-Provides information on alignment , #atoms, temp
+Provides information on alignment, #atoms, temperature.
 
-Last Updated: Winter, 2021
+Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 from motCamera import MOTCamera
