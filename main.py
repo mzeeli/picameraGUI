@@ -130,8 +130,8 @@ class PiCameraGUI(tk.Frame):
                                     highlightthicknes=1)
         coordinatesFrame.place(x=570, y=11)
 
-        motLblFont = tkFont.Font(family=self.defaultFont, size=20)
-        tk.Label(coordinatesFrame, text='MOT Position', font=motLblFont)\
+        motLblFont = tkFont.Font(family=self.defaultFont, size=15)
+        tk.Label(coordinatesFrame, text='MOT Position (um)', font=motLblFont)\
             .place(relx=0.5, rely=0.05, anchor='center')
 
         # Display Data
@@ -379,13 +379,14 @@ class PiCameraGUI(tk.Frame):
         print("Started mot-fiber distance calculations")
         
         # Increase framerates for alignment
-        self.cam0.framerate = 100
-        self.cam1.framerate = 100
+        self.cam0.framerate = 60
+        self.cam1.framerate = 60
         
         gHeight = 570  # Grid height
         gWidth = 550  # Grid width
         motRadius = 15  # Todo dynamic radius?
-        zoom = 3  # arbituary zoom factor
+        zoom = 12  # arbituary zoom factor so that mot appears more dynamic on grid
+        px2Micron = 65  #130 um HCF appears to be ~2 pixels on the camera
 
         # Create initial mot on canvas but make it off screen
         mot = canvas.create_oval(gWidth/2+1000-motRadius,
@@ -408,16 +409,17 @@ class PiCameraGUI(tk.Frame):
                 
                 cam0Thread.join() # wait for both images to be captured
 
-                x, y = motAlignment.getFiberMOTDistanceCamsFront(self.cam0.img,
-                                                                 self.cam1.img,
-                                                                 debug=False)
+                x, y, z = motAlignment.getFiberMOTDistance(self.cam0.img,
+                                                           self.cam1.img,
+                                                           debug=True)
                                                                         
                 # Check again if currently on alignment view and edit labels
                 if self.currWin == "alignment": 
                     
                     # Edit numerical labels
-                    xLbl.configure(text=f"x\n{x}")
-                    yLbl.configure(text=f"y\n{y}")
+                    xLbl.configure(text=f"x\n{x*px2Micron}")
+                    yLbl.configure(text=f"y\n{y*px2Micron}")
+                    zLbl.configure(text=f"z\n{z*px2Micron}")
 
 
                     # Edit MOT position on 2d grid
@@ -598,17 +600,10 @@ class PiCameraGUI(tk.Frame):
         
         # Stack cam0 and cam1 images vertically
         combinedImg = np.concatenate((self.cam0.img, self.cam1.img), axis=0)
-        
-        _, _, dimensions = self.cam1.img.shape
-        
-        # If not grayscale, image need to reorder image dimensions to match RGB
-        if dimensions == 3:
-            combinedImg = combinedImg[:, :, ::-1]
             
         # Save combined image
         cv2.imwrite(savePath, combinedImg)
         self.logAction(f"Saved image to {savePath}")
-        # ~ print(f"Image saved at {savePath}")
 
     def clearMainDisplay(self):
         """

@@ -148,10 +148,11 @@ class MOTCamera(picamera.PiCamera):
             roiX = motAlignment.cam0xROI
             roiY = motAlignment.cam0yROI
 
-        cv2.rectangle(self.img, (roiX, roiY), (roiX+roiLength, roiY+roiLength),
+        imgCopy = np.copy(self.img)
+        cv2.rectangle(imgCopy, (roiX, roiY), (roiX+roiLength, roiY+roiLength),
                       255, 2)
 
-        img = Image.fromarray(self.img)
+        img = Image.fromarray(imgCopy)
         imgtk = ImageTk.PhotoImage(image=img)
         label.image = imgtk
         label.configure(image=imgtk)

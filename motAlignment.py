@@ -10,11 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ROIs for when both cameras are in front
-cam0xROI = 250
-cam0yROI = 150
-cam1xROI = 210
-cam1yROI = 160
-lengthROI = 60
+cam0xROI = 245
+cam0yROI = 130
+cam1xROI = 205
+cam1yROI = 145
+lengthROI = 80
 
 def create3DView(debug=False):
     """
@@ -161,92 +161,7 @@ def matchPoints(mask1, mask2):
 
     return points[1:, :]
 
-
-def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=True):
-    """
-
-    :param cam0MotImgRaw: Raw uncropped grayscale image with mot of camera 0
-    :param cam1MotImgRaw: Raw uncropped grayscale image with mot of camera 1
-    :param debug:
-    :return:
-    """
-
-    ################################################################
-    # Read background images. These should be constant after we find a good
-    # position for the cameras and find a good shutter speed
-    ################################################################
-    bgImg = cv2.imread(r"./saved_images/Background/background.jpg", 0)
-    _, imgH = np.shape(bgImg)
-    cam0BgImg = bgImg[:imgH//2, :]
-    cam1BgImg = bgImg[imgH//2:, :]
-
-    ################################################################
-    ## Perform background subtraction
-    ################################################################
-    print(np.shape(cam0MotImgRaw))
-    cam0MotImg = cv2.subtract(cam0MotImgRaw, cam0BgImg)
-    cam1MotImg = cv2.subtract(cam1MotImgRaw, cam1BgImg)
-
-    cam0xROI = 215
-    cam0yROI = 105
-    cam1xROI = 150
-    cam1yROI = 100
-
-
-    cam0MotROI = cam0MotImg[cam0yROI:cam0yROI + 100, cam0xROI:cam0xROI + 100]
-    cam1MotROI = cam1MotImg[cam1yROI:cam1yROI + 100, cam1xROI:cam1xROI + 100]
-
-    cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('cam0MotROI', 400, 400)
-    cv2.imshow("cam0MotROI", cam0MotROI)
-
-    x0, y0, _ = getMOTCenter(cam0MotROI)
-    x1, y1, _ = getMOTCenter(cam1MotROI)
-
-    x0 = x0 + cam0xROI  # overall pixel location outside of just ROI
-    y0 = y0 + cam0yROI  # overall pixel location outside of just ROI
-    x1 = x1 + cam1xROI  # overall pixel location outside of just ROI
-    y1 = y1 + cam1yROI  # overall pixel location outside of just ROI
-
-    if debug:
-        cv2.circle(cam0MotImg, (x0, y0), 6, 260, 1)
-        cv2.circle(cam1MotImg, (x1, y1), 6, 260, 1)
-        cv2.circle(cam0MotImgRaw, (x0, y0), 6, 260, 1)
-        cv2.circle(cam1MotImgRaw, (x1, y1), 6, 260, 1)
-        cv2.circle(cam0BgImg, (x0, y0), 6, 260, 1)
-        cv2.circle(cam1BgImg, (x1, y1), 6, 260, 1)
-
-        motCombined = np.vstack((cam0MotImg, cam1MotImg))
-        motCombinedRaw = np.vstack((cam0MotImgRaw, cam1MotImgRaw))
-        bgCombined = np.vstack((cam0BgImg, cam1BgImg))
-
-        cv2.imshow("MotImg", motCombined)
-        cv2.imshow("MotImgRaw", motCombinedRaw)
-        cv2.imshow("bgCombined", bgCombined)
-
-        cv2.imwrite("test_motCombined.jpg", motCombined)
-        cv2.imwrite("test_motCombinedRaw.jpg", motCombinedRaw)
-        cv2.imwrite("test_bgCombined.jpg", bgCombined)
-
-        cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('cam0MotROI', 400, 400)
-        cv2.namedWindow('cam1MotROI', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('cam1MotROI', 400, 400)
-        cv2.imshow("cam0MotROI", cam0MotROI)
-        cv2.imshow("cam1MotROI", cam1MotROI)
-        cv2.waitKey(0)
-
-    # Todo: figure out how image pixels translate to 3d position
-    motPixelPositions = {
-        "x": x0,
-        "y": x1,
-        "z": (y0+y1)/2,
-    }
-
-    return motPixelPositions
-
-
-def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
+def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     """
     A new get mot center code written for a change in the setup on April 23. Instead of having one camera looking at the
     mot through the coils, both of them now look at them from the front, but at a slightly different angle. Now we need
@@ -255,47 +170,69 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
 
     :param cam0MotImgRaw: Raw uncropped grayscale image with mot of camera 0
     :param cam1MotImgRaw: Raw uncropped grayscale image with mot of camera 1
-    :param debug:
-    :return:
+    :param debug: debugging flag
+    
+    :return: x, y, z of the mot position in camera pixels
     """
-
     ################################################################
-    # Get MOT's location
+    # Initial ROI
     ################################################################
     cam0MotROI = cam0MotImgRaw[cam0yROI : cam0yROI + lengthROI,
                                cam0xROI : cam0xROI + lengthROI]
 
     cam1MotROI = cam1MotImgRaw[cam1yROI : cam1yROI + lengthROI,
                                cam1xROI : cam1xROI + lengthROI]
-
-    x0, y0, _ = getMOTCenter(cam0MotROI)
-    x1, y1, _ = getMOTCenter(cam1MotROI)
-
-    x0 = x0 + cam0xROI  # overall pixel location outside of just ROI
-    y0 = y0 + cam0yROI  # overall pixel location outside of just ROI
-    x1 = x1 + cam1xROI  # overall pixel location outside of just ROI
-    y1 = y1 + cam1yROI  # overall pixel location outside of just ROI
-
-
+                               
     ################################################################
     # Get fiber's location
     ################################################################
-    fiberx0 = getFiberCenter(cam0MotROI)
-    fiberx1 = getFiberCenter(cam1MotROI)
+    # Get x position of fiber
+    fiberx0_roi, fibery0_roi = getFiberCenter(cam0MotROI)
+    fiberx1_roi, fibery1_roi = getFiberCenter(cam1MotROI)
 
-    fiberx0 = fiberx0 + cam0xROI
-    fiberx1 = fiberx1 + cam1xROI
+    fiberx0_global = fiberx0_roi + cam0xROI
+    fibery0_global = fibery0_roi + cam0yROI
+    fiberx1_global = fiberx1_roi + cam1xROI
+    fibery1_global = fibery1_roi + cam1yROI
+    
+    
+    ################################################################
+    # Get MOT's location
+    ################################################################
+    # crop roi from the tip of the fiber
+    cam0MotROI_fiberless = cam0MotROI[:fibery0_roi, :]
+    cam1MotROI_fiberless = cam1MotROI[:fibery1_roi, :]
+    
+    # ~ if debug:
+        # ~ cv2.namedWindow('cam0MotROI_fiberless', cv2.WINDOW_NORMAL)
+        # ~ cv2.resizeWindow('cam0MotROI_fiberless', 800, 800)
+        # ~ cv2.namedWindow('cam1MotROI_fiberless', cv2.WINDOW_NORMAL)
+        # ~ cv2.resizeWindow('cam1MotROI_fiberless', 800, 800)
+        # ~ cv2.imshow("cam0MotROI_fiberless", cam0MotROI_fiberless)
+        # ~ cv2.imshow("cam1MotROI_fiberless", cam1MotROI_fiberless)
+        # ~ cv2.waitKey(0)
+    
+    x0_roi, y0_roi, _ = getMOTCenter(cam0MotROI_fiberless)
+    x1_roi, y1_roi, _ = getMOTCenter(cam1MotROI_fiberless)
 
-    relativeX = x0 - fiberx0
-    relativeY = x1 - fiberx1
+    # overall pixel location outside of ROI
+    x0_global = x0_roi + cam0xROI
+    y0_global = y0_roi + cam0yROI 
+    x1_global = x1_roi + cam1xROI 
+    y1_global = y1_roi + cam1yROI  
 
-    # ~ print(f"relative distances --- x: {relativeX}, y: {relativeY}")
+    relativeX = x0_global - fiberx0_global
+    relativeY = x1_global - fiberx1_global
+    relativeZ = ((fibery0_global-y0_global)+(fibery1_global-y1_global))/2
 
+    ################################################################
+    # Debugging
+    ################################################################
     if debug:
-        cv2.circle(cam0MotImgRaw, (x0, y0), 6, 260, 1)
-        cv2.circle(cam1MotImgRaw, (x1, y1), 6, 260, 1)
-        cv2.line(cam0MotImgRaw, (fiberx0, 0), (fiberx0, 272), (255, 0, 255), 1)
-        cv2.line(cam1MotImgRaw, (fiberx1, 0), (fiberx1, 272), (255, 0, 255), 1)
+        cv2.circle(cam0MotImgRaw, (x0_global, y0_global), 5, 255, 1)
+        cv2.circle(cam1MotImgRaw, (x1_global, y1_global), 5, 255, 1)
+        cv2.line(cam0MotImgRaw, (fiberx0_global, 0), (fiberx0_global, 272), (255, 0, 255), 1)
+        cv2.line(cam1MotImgRaw, (fiberx1_global, 0), (fiberx1_global, 272), (255, 0, 255), 1)
         
         cv2.rectangle(cam0MotImgRaw, (cam0xROI, cam0yROI), 
                       (cam0xROI+lengthROI, cam0yROI+lengthROI),
@@ -306,9 +243,9 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
                       
         motCombinedRaw = np.vstack((cam0MotImgRaw, cam1MotImgRaw))
         
-        cv2.namedWindow('MotImgRaw', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('MotImgRaw', 800, 800)
-        cv2.imshow("MotImgRaw", motCombinedRaw)
+        # ~ cv2.namedWindow('MotImgRaw', cv2.WINDOW_NORMAL)
+        # ~ cv2.resizeWindow('MotImgRaw', 800, 800)
+        # ~ cv2.imshow("MotImgRaw", motCombinedRaw)
 
         cv2.namedWindow('cam0MotROI', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('cam0MotROI', 400, 400)
@@ -317,17 +254,10 @@ def getFiberMOTDistanceCamsFront(cam0MotImgRaw, cam1MotImgRaw, debug=False):
         cv2.imshow("cam0MotROI", cam0MotROI)
         cv2.imshow("cam1MotROI", cam1MotROI)
         
-        cv2.waitKey(0)
+        cv2.waitKey(750)
 
     # Todo: figure out how image pixels translate to 3d position
-    motPixelPositions = {
-        "x": x0,
-        "y": x1,
-        "z": (y0+y1)/2,
-    }
-
-
-    return relativeX, relativeY
+    return relativeX, relativeY, relativeZ
 
 
 def getMOTCenter(img):
@@ -423,135 +353,51 @@ def getFiberCenter(img):
     :param img: original roi of raw image of MOT
     :return: x and y position of the fiber tip
     """
-
-    colSums = np.sum(img, axis=0)
+    
+    # Threshold image to just show fiber
+    ret, imgThresh = cv2.threshold(img, 125, 255, cv2.THRESH_BINARY)
+    # ~ cv2.namedWindow('imgThresh', cv2.WINDOW_NORMAL)
+    # ~ cv2.resizeWindow('imgThresh', 400, 400)
+    # ~ cv2.imshow("imgThresh", imgThresh)
+    # ~ cv2.waitKey(0)
+    
+    # Find the x of the fiber based on the largest column intensity
+    colSums = np.sum(imgThresh, axis=0)
     x = np.argmax(colSums)
-
-    return x
-
-def randomTestImages():
-    """
-    Function to analyze random mot images I found and calculate their distance
-    to an arbituary fiber
-    :return:
-    """
-    # imgPath = r"./saved_images/motTestImage.png"
-    imgPath = r"./saved_images/motTestImage_pantitaThesis.jpg"
-    imgPath = r"./saved_images/mot image.png"
-    image = cv2.imread(imgPath, 0)
-
-    x, y, image = getMOTCenter(image)
-
-    # Create arbituary fiber and draw on picture
-    h, w = image.shape
-    fiberX = int(w / 2)  # Assume fiber is in the middle of the image
-    fiberY = h - 50  # Assume fiber is 50 pixels above bottom border
-    cv2.rectangle(image, (fiberX - 5, h), (fiberX + 5, fiberY), 190, -1)
-
-    relx = x - fiberX
-    rely = fiberY - y
-    xPos = f"Rel_x: {relx} px"
-    yPos = f"Rel_y: {rely} px"
-
-    cv2.putText(image, xPos, (10, 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
-    cv2.putText(image, yPos, (10, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 200, 1, cv2.LINE_AA)
-
-    cv2.arrowedLine(image, (fiberX, fiberY), (x, y), 0, 1)
-
-    cv2.imshow("image", image)
-    cv2.waitKey(0)
-
-def npqoTestImages():
-    # Image 1 #
-    imgPath = r"./saved_images/npqo_pics/little_MOT_after_UV.jpg"
-    image = cv2.imread(imgPath, 0)
-    image = cv2.rotate(image, cv2.ROTATE_180)
-    motROI = image[205:245, 340:380]
-    x, y, imgResult1 = getMOTCenter(motROI)
-    cv2.namedWindow('imgResult1', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('imgResult1', 300, 300)
-    cv2.imshow("imgResult1", imgResult1)
-
-    # Image 2 #
-    imgPath = r"./saved_images/npqo_pics/3co4master.jpg"
-    image = cv2.imread(imgPath, 0)
-    image = cv2.rotate(image, cv2.ROTATE_180)
-    motROI = image[305:405, 380:480]
-    x, y, imgResult2 = getMOTCenter(motROI)
-    cv2.namedWindow('imgResult2', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('imgResult2', 300, 300)
-    cv2.imshow("imgResult2", imgResult2)
-
-    # Image 3 #
-    imgPath = r"./saved_images/npqo_pics/2019-6-07.jpg"
-    image = cv2.imread(imgPath, 0)
-    image = cv2.rotate(image, cv2.ROTATE_180)
-    motROI = image[30:100, 350:420]
-    x, y, imgResult3 = getMOTCenter(motROI)
-    cv2.namedWindow('imgResult3', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('imgResult3', 300, 300)
-    cv2.imshow("imgResult3", imgResult3)
-
-    cv2.waitKey(0)
+    
+    # Find the pixel column that represents the fiber
+    fiberCol = img[:, x].astype('int32')
+    fiberColDiff = np.diff(fiberCol)
+    
+    # Find the tip of the fiber based on the largest difference in intensity
+    # +1 to offset adjust to the diff index
+    y = np.argmax(fiberColDiff)
+    
+    return x, y
 
 
 if __name__ == "__main__":
-    # create3DView(debug=True)
-    # npqoTestImages()
-
-    # motPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
-    # BgPath = r"C:\Users\Michael\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\background 1.jpg"
-
-    #######################################################
-    # for when one of the cameras look through the coils
-    #######################################################
-    motPath = r"C:\Users\Michael Li\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 20 - first time mot\mot 1.jpg"
-
-    motImg = cv2.imread(motPath, 0)
+    ###########################################################################
+    # May 5 Alignment image test
+    ###########################################################################
+    
+    # ~ filePath = r"./saved_images/May 5 0514 us shutter speed images/20210505_162330.jpg"
+    # ~ filePath = r"./saved_images/May 5 0514 us shutter speed images/20210505_162332.jpg"
+    
+    # ~ filePath = r"./saved_images/20210505_164652.jpg"
+    filePath = r"./saved_images/20210505_164654.jpg"
+    # ~ filePath = r"./saved_images/20210505_164656.jpg"
+    # ~ filePath = r"./saved_images/20210505_164701.jpg"
+    # ~ filePath = r"./saved_images/20210505_164703.jpg"
+    
+    
+    motImg = cv2.imread(filePath, 0)
 
     w, h = np.shape(motImg)
 
     cam0Img = motImg[:h//2, :]  # cropped picture of mot for cam 0
     cam1Img = motImg[h//2:, :]  # cropped picture of mot for cam 0
 
-    relPos1 = getFiberMOTDistance(cam0Img, cam1Img)
-    relPos1 = [5, -4]
-    ###########################################################################
-    # April 23 for when both cameras look at it from the front
-    ###########################################################################
-    motPath = r"C:\Users\Michael Li\OneDrive\Co-op 5\NPQO\Pi Camera\Picamera images april 23 - both cameras in front\20210423_164704.jpg"
-
-    motImg = cv2.imread(motPath, 0)
-
-    w, h = np.shape(motImg)
-
-    cam0Img = motImg[:h//2, :]  # cropped picture of mot for cam 0
-    cam1Img = motImg[h//2:, :]  # cropped picture of mot for cam 0
-
-    relPos2 = getFiberMOTDistanceCamsFront(cam0Img, cam1Img)
-    print(relPos2)
-    angle = 45
-    # Apply rotation matrix, assuming 45 degrees turn
-    relPos2 = [relPos2[0] * np.cos(angle) - relPos2[1] * np.sin(angle),
-               relPos2[0] * np.sin(angle) + relPos2[1] * np.cos(angle)]
-    print(relPos2)
-
-
-    pixel2Micron = 130/1.3
-
-    relPos2 = np.array(relPos2)*pixel2Micron
-    relPos1 = np.array(relPos1)*pixel2Micron
-
-
-    plt.plot(relPos2[0], relPos2[1], ".")
-    plt.plot(relPos1[0], relPos1[1], ".")
-    plt.legend(["Both cameras in front", "One camera through coil"])
-    plt.xlabel("X distance (um)")
-    plt.ylabel("Y distance (um)")
-    plt.xlim([-7*pixel2Micron,7*pixel2Micron])
-    plt.ylim([-7*pixel2Micron,7*pixel2Micron])
-    plt.show()
-
-
+    x, y, z = getFiberMOTDistance(cam0Img, cam1Img, debug=True)
+    print(x, y)
+    
