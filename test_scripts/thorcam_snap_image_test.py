@@ -14,8 +14,11 @@ from pyueye import ueye
 import numpy as np
 import cv2
 
+#################################################################
+# Camera Parameters
+#################################################################
 # init camera
-hCam = ueye.HIDS(0)
+hCam = ueye.HIDS(1) # [1,2] 
 ret = ueye.is_InitCamera(hCam, None)
 
 # set color mode
@@ -31,19 +34,21 @@ rect_aoi.s32Width = ueye.int(width)
 rect_aoi.s32Height = ueye.int(height)
 ueye.is_AOI(hCam, ueye.IS_AOI_IMAGE_SET_AOI, rect_aoi, ueye.sizeof(rect_aoi))
 
+#################################################################
+# Memory
+#################################################################
 # allocate memory
 mem_ptr = ueye.c_mem_p()
 mem_id = ueye.int()
 nBitsPerPixel = 24 # for colormode = IS_CM_BGR8_PACKED
-ret = ueye.is_AllocImageMem(hCam, width, height, nBitsPerPixel,
-                            mem_ptr, mem_id)
+ret = ueye.is_AllocImageMem(hCam, width, height, nBitsPerPixel, mem_ptr, mem_id)
 
 # set active memory region
 ret = ueye.is_SetImageMem(hCam, mem_ptr, mem_id)
 
 def main():
     # set exposure time in ms
-    set_exposure_time(0.01, False)
+    set_exposure_time(60, False)
     
     #################################################################
     # Take image without doing anything to adjust for exposure time
@@ -71,7 +76,7 @@ def main():
         img = ueye.get_data(mem_ptr, width, height, nBitsPerPixel, lineinc, copy=True)
         img = np.reshape(img, (height, width, 3))
         cv2.imshow('Trigger Image', img)
-        cv2.waitKey(6000)
+        cv2.waitKey(0)
         cv2.destroyAllWindows()
     
     ret = ueye.is_ExitCamera(hcam)

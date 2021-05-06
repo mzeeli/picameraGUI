@@ -26,8 +26,7 @@ class MOTCamera(picamera.PiCamera):
         """
         camera class to access camera funcitons. Child of default PiCamera class
 
-        :param camera_num: (int [0,1]) determines which camera to open and
-        reference
+        :param camera_num: (int [0,1]) determines which camera to open
             camera_num = 0: gets camera connected to CAM1 on COMPUTE MODULE
             camera_num = 1: gets camera connected to CAM0 on COMPUTE MODULE
         :param grayscale:
