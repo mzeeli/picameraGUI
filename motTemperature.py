@@ -1,6 +1,5 @@
 """
-Script to calculate MOT temperature given a series of images based on time of
-flight
+Script to calculate MOT temperature given a series of absorption images
 
 The TOF temperature calculation script follows "Measurement of Temperature of
 Atomic Cloud Using Time-of-Flight Technique" by P. Arora et al.
@@ -31,11 +30,12 @@ cesium = Cesium()
 
 def findImgFiles(imgDir):
     """
-    Finds necessary image files in the imgDir directory for temperature
-    calculations. Finds and returns images titled similar to '##ms.png' and the
+    Finds necessary image files in the imgDir directory for temperature calculations.
+
+    Finds and returns images titled similar to '##ms.png' and the
     'background.png' file path
 
-    :param imgDir: Path to folder containing mot images. Ex.
+    :param imgDir: (str: filepath) Path to folder containing mot images. Ex.
                    imgDir=r'./legacy/Absorption image example'
     :return: MOT image directory paths as a list, path to probe image
     """
@@ -65,9 +65,9 @@ def gaussianRadiiFunc(t, sigma_0, sigma_v):
     et al.
 
     :param t: (int) time [s]
-    :param sigma_0: initial radii of cloud [m]
-    :param sigma_v: speed of cloud radii increase [m/s]
-    :return:
+    :param sigma_0: (double) initial radii of cloud [m]
+    :param sigma_v: (double) speed of cloud radii increase [m/s]
+    :return: (double) gaussian raddi function's evaluation
     """
 
     return np.sqrt(sigma_0**2 + sigma_v**2 * t**2)
@@ -80,9 +80,9 @@ def getTemperature(mass, sigma_v):
     Based on equation (2) in "Measurement of Temperature of Atomic Cloud
     using Time-of-flight Technique" paper
 
-    :param mass: Atomic mass [kg]
-    :param sigma_v: rate of cloud radii increase [m/s]
-    :return: Temperature [K]
+    :param mass: (double) Atomic mass [kg]
+    :param sigma_v: (double) rate of cloud radii increase [m/s]
+    :return: (double) Temperature [K]
     """
     k_b = 1.38e-23  # Boltzman Constant
     T = mass / k_b * sigma_v**2
@@ -92,17 +92,19 @@ def getTemperature(mass, sigma_v):
 def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
                    Gauss2Dflag=False):
     """
+    Gets cloud radii for a given absorption image
 
     This function was originally a script written by Turner Silverthorne,
     I didn't change the algorithm, just refactored it and made it modular.
 
     :param imgback: (2D np.array) Background image of just probe laser
     :param imgfore: (2D np.array) Image of MOT with probe laser
-    :param roiflag: toggles ROI cropping visuals for debugging
-    :param visualflag: toggles debugging visuals
-    :param Gauss2Dflag: toggles between 1D or 2D gaussian fitting
 
-    :return:
+    :param roiflag: (bool) toggles ROI cropping visuals for debugging
+    :param visualflag: (bool) toggles debugging visuals
+    :param Gauss2Dflag: (bool) toggles between 1D or 2D gaussian fitting
+
+    :return: (double) Cloud radii (sigma_t) in units of pixels
     """
     # constants
     fitaxis = 0  # 0: x-axis, 1: y-axis
@@ -295,13 +297,14 @@ def imageToSigmaE2(imgback, imgfore, time=-1, debug=False):
 
     :param imgback: (2D np.array) image of just the probelaser background
     :param imgfore: (2D np.array) image of the MOT absorbing in front of camera
-    :param debug: (bool) toggles debugging mode to view ROIs in CV2 and also
-    saves the images to "./saved_images/MOT_Temperature/{sigma}.jpg"
+
     :param time: time of the given image, doesn't have to be included but
-    useful information to have with debugging images
+                 useful information to have with debugging images
+    :param debug: (bool) toggles debugging mode to view ROIs in CV2 and also
+                  saves the images to "./saved_images/MOT_Temperature/{sigma}.jpg"
 
 
-    :return: sigma_t
+    :return: (double) Cloud radii (sigma_t) in units of pixels
     """
     # constants
     fitaxis = 0  # 0: x-axis, 1: y-axis
@@ -412,15 +415,15 @@ def imageToSigmaE2(imgback, imgfore, time=-1, debug=False):
 
 def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
     """
-    Calculates and returns temperature based on a series of MOT images taken
-    over a known time frame
+    Calculates and returns temperature based on a series of absorption images
 
     :param filelist: (str) List of Image paths
     :param bgImgPath: (str) image path to background image
     :param showSigmaFit: (bool) toggles view of pyplot fit
 
-    :return T: (np.float64) temperature of MOT cloud in Kelvin
+    :return T: (np.float64) temperature of MOT cloud [Kelvin]
     """
+
     sig_ar = np.zeros(len(filelist))  # Array to store the sigma values
     t_ar = np.zeros(len(filelist))  # time array
 

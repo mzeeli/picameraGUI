@@ -1,6 +1,6 @@
 """
-Cesium atom class, contains relavent information to the cesium atom such as
-mass, linewidth, saturation intensity, etc...
+Houses the Cesium class. This is used as a central location to reference constants
+relavent to the Cesium atom
 
 Last Updated: Summer Term, 2021
 Author: Michael Li
@@ -8,6 +8,12 @@ Author: Michael Li
 
 
 class Cesium:
+    """
+    Cesium atom class, contains scientific constants to the cesium atom such as
+    mass, linewidth, saturation intensity, etc...
+
+    Data can be verified at https://steck.us/alkalidata/cesiumnumbers.pdf
+    """
     def __init__(self):
         # Atomic Mass [kg]
         self.atomicMass = 2.206948425e-25

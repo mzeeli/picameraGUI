@@ -1,13 +1,11 @@
 """
-Script to calculate number of atoms given a MOT image
+Script to calculate number of atoms given an absorption image image
 Todo: Should have both fluorescent and absorption imaging techniques
 
 The absorption imaging # atom script followed the method in [Luksch, Thesis,
 National University of Singapore (2012)]. This script was originally written by
 Taehyun Yoon but for a different setup. I modified it to fit the raspberry pi
 system
-
-The fluorescent imaging technique #atom script follows
 
 Last Updated: Summer Term, 2021
 Author: Michael Li
@@ -24,14 +22,16 @@ from motCamera import MOTCamera
 
 cs = Cesium()
 
-def imgavr(filelist, y):  # function to fit to sigma array
+
+def imgavr(filelist, y):
     """
     Function included with Taehyun's script
 
     Reads a list of files in the target directory and averages their values,
     goal is to get an averaged image of the mot to reduce noise
 
-    :param filelist: list of image paths of the same image
+    :param filelist: (str array: filepaths) list of image paths of the same image
+    :param y: (int) center y position of the crop square, default 600
     :return: averaged image of the mot
     """
     cropx = 520  # center x position of the crop square, default 520
@@ -54,9 +54,19 @@ def imgavr(filelist, y):  # function to fit to sigma array
 
 def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
     """
+    Calculates number of atoms given absorption image
+
     This is the original algorithm Taeyoon wrote to calculate number of atoms
     It followed the method in Luksh's Thesis
 
+    :param motImgPath: (str) Filepath to image of mot blocking probe beam
+    :param probeImgPath: (str) Filepath to image of just probe beam
+    :param bgImgPath: (str) Filepath of background: no probe beam or mot
+    :param y: (int) center y position of the crop square, default 600
+
+    :param showImg: (bool) toggles images displays for debugging
+
+    :return: (int) number of atoms observed in MOT
     """
     # Constants #
     fitaxis = 0  # 0: x-axis, 1: y-axis
@@ -113,13 +123,21 @@ def getNumAtomsLegacy(motImgPath, probeImgPath, bgImgPath, y, showImg=False):
 
 def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
     """
+    Calculates number of atoms given an absorption image
+
+    This is the function I wrote, where I picked out the important parts of Taeyoon's
+    script and made it modular
+
     Calculates the number of atoms based on the probe beam absorption method.
     This is the main method outlined in Luksch's Thesis
 
-    :param motImgPath:
-    :param probeImgPath:
-    :param bgImgPath:
-    :return:
+    :param motImgPath: (str) Filepath to image of mot blocking probe beam
+    :param probeImgPath: (str) Filepath to image of just probe beam
+    :param bgImgPath: (str) Filepath of background: no probe beam or mot
+
+    :param y: (int) center y position of the crop square, default 600
+
+    :return: (int) number of atoms observed in MOT
     """
     # Constants #
 
@@ -165,9 +183,10 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
 def numAtomsAbsOverTime(imgDir):
     """
     Performs numAtomsAbs on all image files in a given folder.
+
     Returns list of #atoms calculated and their respective timestamp
 
-    :param imgDir: Directory containing all image files, see "Absorption images
+    :param imgDir: (str) Directory containing all image files, see "Absorption images
                    example" for reference of structure
 
     :return: list of #Atoms for a given image, list of corresponding time
@@ -200,19 +219,15 @@ def numAtomsAbsOverTime(imgDir):
         atomNum.append(atomCount)
         y = y - 15
 
-    # pyplot.plot(imgTimes, atomNum, '-o')
-    # pyplot.xlabel("time (ms)")
-    # pyplot.ylabel("#Atoms")
-    # pyplot.show()
-
     return atomNum, imgTimes
 
 
 def numAtomsFlu():
     """
     Calculates the number of atoms based on the fluorescent method.
+    Todo
 
-    :return: # atoms
+    :return: (int) #atoms in mot
     """
 
     # Camera Hardware Properties
