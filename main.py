@@ -293,6 +293,7 @@ class PiCameraGUI(tk.Frame):
             .place(x=41, y=301)
 
         ## Shutter Speed Tuning ##
+        # Todo add text box for direct ss change
         # Create shutter speed frame
         ssFrame = tk.Frame(master=self.mainDisplay,
                            height=160, width=190,
@@ -315,7 +316,7 @@ class PiCameraGUI(tk.Frame):
         calibrateBtn.place(relx=0.5, rely=0.58, anchor='center')
 
         # Scale
-        ssScale = tk.Scale(ssFrame, from_=0, to=5000,
+        ssScale = tk.Scale(ssFrame, from_=0, to=10000,
                            orient=tk.HORIZONTAL, length=180,
                            command=lambda val, lbl=ssLbl:
                            self.setShutterSpeed(lbl, val))
@@ -415,13 +416,8 @@ class PiCameraGUI(tk.Frame):
         :param imgYSize: (int) image height, should match labels size in camera view
 
         """
-        # while we are on the alignment window, continue performing alignment
         # calculations
         print("Started mot-fiber distance calculations")
-
-        # Increase framerates for alignment
-        self.cam0.framerate = 60
-        self.cam1.framerate = 60
 
         gHeight = 570  # Grid height
         gWidth = 550  # Grid width
@@ -435,7 +431,8 @@ class PiCameraGUI(tk.Frame):
                                  gWidth / 2 + 1000 + motRadius,
                                  gHeight / 2 - 1000 + motRadius,
                                  fill='slate gray')
-
+                                 
+        # while we are on the alignment window, continue performing alignment
         while self.currWin == "alignment":
             try:
                 startTime = time.time()
@@ -475,6 +472,7 @@ class PiCameraGUI(tk.Frame):
                     print("total time:", time.time() - startTime)
 
                 else:
+                    cv2.destroyAllWindows()
                     break
 
             except Exception as e:

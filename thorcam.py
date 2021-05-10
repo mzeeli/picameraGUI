@@ -2,7 +2,9 @@
 Wrapper for pyueye IDS camera functions. Use the Thorcam class to connect 
 and adjust the thorcam camera parameters.
 
-The thorcams last used were the UI-3240CP-NIR-GL-TL model.
+The thorcams last used were the UI-3240CP-NIR-GL-TL model. The rpi compute
+module 3+ has the capability to connect to two thorcams. It's important
+to make sure the usb hub is capable of handling the cameras.
 
 Last installed drivers were 4.92. Technically meant for the raspberry pi 3
 but they work on the compute module 3+ as well.
@@ -24,7 +26,7 @@ class Thorcam():
 
     This class is a wrapper to make working with pyueye easier. Some of the
     original function names in pyueye are not straight forward and difficult to
-    work with. This class hopes to streamline that process
+    work with. This class hopes to streamline the whole process
 
     Fields:
         hCam: (ueye.HIDS) Camera handle

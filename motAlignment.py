@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 
 # ROIs for when both cameras are in front
 # Determined these values just based on trial and error
-cam0xROI = 245
-cam0yROI = 130
-cam1xROI = 205
-cam1yROI = 145
-lengthROI = 80
+cam0xROI = 250
+cam0yROI = 160
+cam1xROI = 225
+cam1yROI = 170
+lengthROI = 40
 
 
 def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
@@ -95,6 +95,8 @@ def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
         cv2.circle(cam1MotImgRaw, (x1_global, y1_global), 5, 255, 1)
         cv2.line(cam0MotImgRaw, (fiberx0_global, 0), (fiberx0_global, 272), (255, 0, 255), 1)
         cv2.line(cam1MotImgRaw, (fiberx1_global, 0), (fiberx1_global, 272), (255, 0, 255), 1)
+        cv2.line(cam0MotImgRaw, (0, fibery0_global), (544, fibery0_global), (255, 0, 255), 1)
+        cv2.line(cam1MotImgRaw, (0, fibery1_global), (544, fibery1_global), (255, 0, 255), 1)
 
         cv2.rectangle(cam0MotImgRaw, (cam0xROI, cam0yROI),
                       (cam0xROI+lengthROI, cam0yROI+lengthROI),
@@ -228,10 +230,11 @@ def getFiberCenter(img):
 
     # Find the pixel column that represents the fiber
     fiberCol = img[:, x_fiberTip].astype('int32')
-    fiberColDiff = np.diff(fiberCol)
+    startRow = 20
+    fiberColDiff = np.diff(fiberCol[startRow:30])
 
     # Find the tip of the fiber based on the largest difference in intensity
-    y_fiberTip = np.argmax(fiberColDiff)
+    y_fiberTip = np.argmax(fiberColDiff) + startRow
 
     return x_fiberTip, y_fiberTip
 

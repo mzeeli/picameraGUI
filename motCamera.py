@@ -161,15 +161,16 @@ class MOTCamera(picamera.PiCamera):
         :param label: (tk.Label) Target label to display snapped images
         """
         self.capImgCV2(544, 272)
-
+      
         roiLength = motAlignment.lengthROI
+        
         if self.camNum == 1:
             roiX = motAlignment.cam1xROI
             roiY = motAlignment.cam1yROI
+
         else:
             roiX = motAlignment.cam0xROI
             roiY = motAlignment.cam0yROI
-
         imgCopy = np.copy(self.img)
         cv2.rectangle(imgCopy, (roiX, roiY), (roiX+roiLength, roiY+roiLength),
                       255, 2)

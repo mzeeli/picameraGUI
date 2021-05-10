@@ -5,7 +5,7 @@ Last Updated: Summer Term, 2021
 Author: Michael Li
 """
 
-import datetime
+from datetime import datetime
 from PIL import ImageTk, Image
 
 
