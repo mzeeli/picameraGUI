@@ -1,2 +1,6 @@
 *.jpg
+*.png
+*.bmp
 __pycache__/*
+venv/*
+.idea/*
