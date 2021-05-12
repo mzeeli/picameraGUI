@@ -17,6 +17,7 @@ import os
 import re
 import cv2
 import numpy as np
+import warnings
 
 from PIL import Image
 from pylab import gray
@@ -27,6 +28,9 @@ from cesium import Cesium
 
 cesium = Cesium()
 
+# sometimes image_to_sigma takes a long time and raises an annoying warning
+# this just suppresses that specific warning
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def findImgFiles(imgDir):
     """
@@ -104,7 +108,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     :param visualflag: (bool) toggles debugging visuals
     :param Gauss2Dflag: (bool) toggles between 1D or 2D gaussian fitting
 
-    :return: (double) Cloud radii (sigma_t) in units of pixels
+    :return: (double) Cloud radii sigma_t in units of pixels
     """
     # constants
     fitaxis = 0  # 0: x-axis, 1: y-axis
@@ -159,7 +163,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     # find center of brightness
     # loop to find center of image
-    thresh = 25
+    thresh = 5  # Old value was 25
     m = np.zeros((X, Y))
 
     for x in range(X):
@@ -178,7 +182,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     # optional visualization
     if visualflag:
-        pyplot.figure(1, figsize=(4, 8))
+        pyplot.figure(1, figsize=(4, 6.5))
         pyplot.subplot(211)
         pyplot.imshow(imdif)
         if fitaxis == 0:
@@ -436,7 +440,9 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
 
         imgarray = np.array(Image.open(filename).convert('L'))
         # sig_ar[index] = imageToSigmaE2(bgarray, imgarray, t_ar[index])
-        sig_ar[index] = image_to_sigma(bgarray, imgarray)
+        sig_ar[index] = image_to_sigma(bgarray, imgarray,
+                                       roiflag=False,
+                                       visualflag=True)
 
     # LINEAR REGRESSION/TEMPERATURE OUTPUT STAGE
     sig_ar *= 13.7 * 10 ** -6  # convert px number to meter
@@ -458,7 +464,8 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
     # Temperature calculation
     M = cesium.atomicMass
     T = getTemperature(M, sigma_v)
-    print('Temperature: {0}'.format(T))
+    T_microKelvin = T*1e6
+    print('Temperature: {0} uK'.format(T_microKelvin))
 
     if showSigmaFit:
         # Plot fit results with data points for debugging
@@ -483,17 +490,8 @@ if __name__ == "__main__":
     # imgPaths, bgPath = findImgFiles(r"saved_images/MOT2")
     # imgPaths = imgPaths[:-2]
 
-    imgPaths, bgPath = findImgFiles(r"legacy/Absorption images example")
-    imgPaths = imgPaths[:-3]  # Ignore last couple of images
+    imgPaths, bgPath = findImgFiles(r".\test_scripts\images\Temp absorption run 1")
+    imgPaths = imgPaths[:-1]  # Ignore last couple of images
 
-    # for i, imgPath in enumerate(imgPaths):
-    #     img = cv2.imread(imgPath, 0)
-    #     img = img[0:750, 360:740]
-    #     cv2.imshow("img", img)
-    #     cv2.waitKey(0)
-    #     outDir = "C:\\Users\\Michael\\OneDrive\\Co-op 5\\NPQO\\Weekly " \
-    #              "Presentations\\Mine\\"
-    #
-    #     cv2.imwrite(f"{outDir}\\{i}.png", img)
 
-    getTempFromImgList(imgPaths, bgPath, showSigmaFit=False)
+    getTempFromImgList(imgPaths, bgPath, showSigmaFit=True)
