@@ -316,7 +316,7 @@ class PiCameraGUI(tk.Frame):
         calibrateBtn.place(relx=0.5, rely=0.58, anchor='center')
 
         # Scale
-        ssScale = tk.Scale(ssFrame, from_=0, to=10000,
+        ssScale = tk.Scale(ssFrame, from_=0, to=3000,
                            orient=tk.HORIZONTAL, length=180,
                            command=lambda val, lbl=ssLbl:
                            self.setShutterSpeed(lbl, val))
@@ -395,8 +395,7 @@ class PiCameraGUI(tk.Frame):
 
         logTable.Table(self.mainDisplay, self.log)
 
-    def getMotFiberPosition(self, xLbl, yLbl, zLbl, nLbl, canvas, imgXSize=544,
-                            imgYSize=272):
+    def getMotFiberPosition(self, xLbl, yLbl, zLbl, nLbl, canvas):
         """
         Displays the relative position between the mot and fiber
 
@@ -439,11 +438,11 @@ class PiCameraGUI(tk.Frame):
                 # Capture image to cam0.img
                 # start image capture on separate thread to take image faster
                 cam0Thread = threading.Thread(target=self.cam0.capImgCV2,
-                                              args=(imgXSize, imgYSize,))
+                                              args=(544, 272))
                 cam0Thread.start()
 
                 # Capture image to cam1.img
-                self.cam1.capImgCV2(imgXSize, imgYSize)
+                self.cam1.capImgCV2(544, 272)
 
                 cam0Thread.join()  # wait for both images to be captured
 

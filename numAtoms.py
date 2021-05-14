@@ -14,12 +14,13 @@ Author: Michael Li
 import numpy as np
 import os
 import re
+import cv2
+
 
 from matplotlib import pyplot
 from PIL import Image
 from cesium import Cesium
 from motCamera import MOTCamera
-
 cs = Cesium()
 
 
@@ -147,13 +148,28 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
     px_meter = 13.7e-6  # ratio of px number to meter
 
     # Read Images #
-    MOTimg = imgavr(motImgPath, y)
-    probeimg = imgavr(probeImgPath, y)
+    # ~ MOTimg = imgavr(motImgPath, y)
+    # ~ probeimg = imgavr(probeImgPath, y)
     bgimg = imgavr(bgImgPath, y)
-
+    
+    MOTimg = cv2.imread(motImgPath[0], 0)
+    probeimg = cv2.imread(probeImgPath[0], 0)
+    bgimg = cv2.imread(bgImgPath[0], 0)
+    
+    # Crop
+    MOTimg = MOTimg[290:390, 250:400]
+    probeimg = probeimg[290:390, 250:400]
+    bgimg = bgimg[290:390, 250:400]
+    
     # Subtract background
-    MOTimg = MOTimg - bgimg
-    probeimg = probeimg - bgimg
+    MOTimg = cv2.subtract(MOTimg, bgimg)
+    probeimg = cv2.subtract(probeimg, bgimg)
+
+    cv2.imshow("MOTimg", MOTimg)
+    cv2.imshow("probeimg", probeimg)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    
 
     # Calculate optical density by ln(I/I_0) #
     # Motimg can not equal zero otherwise log(0), instead set as 1

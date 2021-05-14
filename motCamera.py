@@ -216,6 +216,8 @@ class MOTCamera(picamera.PiCamera):
             if not self.vidOn:
                 cv2.waitKey(1)
                 cv2.destroyAllWindows()
+                self.resolution = (544, 272)
+                self.framerate = 5
                 print("Exiting video view")
                 break
 

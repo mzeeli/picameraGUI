@@ -15,11 +15,12 @@ import matplotlib.pyplot as plt
 
 # ROIs for when both cameras are in front
 # Determined these values just based on trial and error
-cam0xROI = 250
-cam0yROI = 160
-cam1xROI = 225
-cam1yROI = 170
+cam0xROI = 258
+cam0yROI = 155
+cam1xROI = 210
+cam1yROI = 160
 lengthROI = 40
+
 
 
 def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
@@ -65,6 +66,10 @@ def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     cam0MotROI_fiberless = cam0MotROI[:fibery0_roi, :]
     cam1MotROI_fiberless = cam1MotROI[:fibery1_roi, :]
 
+    if (255 in cam0MotROI_fiberless) or (255 in cam1MotROI_fiberless):
+        print("Saturated")
+        
+    
     # ~ if debug:
         # ~ cv2.namedWindow('cam0MotROI_fiberless', cv2.WINDOW_NORMAL)
         # ~ cv2.resizeWindow('cam0MotROI_fiberless', 800, 800)

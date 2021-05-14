@@ -112,14 +112,22 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     """
     # constants
     fitaxis = 0  # 0: x-axis, 1: y-axis
-
+    
     rcropx = 460  # Crop for background intensity comparison, 460
-    rcropy = 480
+    rcropy = 380
     rcropsize = 300  # Half of rcrop square dimension
 
     cropx = 470  # center x position of the crop square, 470
-    cropy = 400  # center y position of the crop square
+    cropy = 380  # center y position of the crop square
     cropsize = 350  # Half of crop square dimension
+    
+    # ~ rcropx = 460  # Crop for background intensity comparison, 460
+    # ~ rcropy = 480
+    # ~ rcropsize = 300  # Half of rcrop square dimension
+
+    # ~ cropx = 470  # center x position of the crop square, 470
+    # ~ cropy = 400  # center y position of the crop square
+    # ~ cropsize = 350  # Half of crop square dimension
 
     # to be used in offsetting background from MOT image
     # you can tune them if you want, but I usually leave them at 0
@@ -163,7 +171,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     # find center of brightness
     # loop to find center of image
-    thresh = 5  # Old value was 25
+    thresh = 15  # Old value was 25
     m = np.zeros((X, Y))
 
     for x in range(X):
@@ -217,6 +225,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     # find average and sigma
     mean = sum(x * z) / sum(z)
     sigma = np.sqrt(sum(z * (x - mean) ** 2) / sum(z))
+    ambient = 0.01
 
     if Gauss2Dflag:
         zz = np.zeros([X, Y])
@@ -241,7 +250,8 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         boundaries = ((-np.inf,  0,   0,     0,  -np.inf),
                       (np.inf,   X,   Y,   X/2,   np.inf))
 
-        popt, pcov = curve_fit(Gauss2D, (xx, yy), zz1d, bounds=boundaries)
+        popt, pcov = curve_fit(Gauss2D, (xx, yy), zz1d, bounds=boundaries, 
+                               p0=[numpy.amax(zz), cx, cy, sigma, ambient])
 
         # xLinspace = np.linspace(0, X - 1, X)
         # yar = Gauss2D([xLinspace, 520], popt[0], popt[1], popt[2], popt[3],
@@ -264,7 +274,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         boundaries = ((-np.inf,   0,     0,  -np.inf),
                       ( np.inf,   X,   X/2,   np.inf))
         # fit curve
-        popt, pcov = curve_fit(Gauss, x, z, bounds=boundaries)
+        popt, pcov = curve_fit(Gauss, x, z, bounds=boundaries, p0=[max(z), mean, sigma, 0.01])
 
         # optional visualization
         if visualflag:
