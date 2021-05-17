@@ -199,7 +199,7 @@ class MOTCamera(picamera.PiCamera):
         print("Double left click to exit")
         # Change resolution and framerate to be more readable
         self.resolution = (rx, ry)
-        self.framerate = 80
+        self.framerate = 10
         self.vidOn = True
         
         rawCapture = PiRGBArray(self)

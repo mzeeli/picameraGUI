@@ -2,7 +2,7 @@
 Wrapper for pyueye IDS camera functions. Use the Thorcam class to connect 
 and adjust the thorcam camera parameters.
 
-The thorcams last used were the UI-3240CP-NIR-GL-TL model. The rpi compute
+The thorcams last used were the - model. The rpi compute
 module 3+ has the capability to connect to two thorcams. It's important
 to make sure the usb hub is capable of handling the cameras.
 

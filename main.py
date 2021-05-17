@@ -330,7 +330,7 @@ class PiCameraGUI(tk.Frame):
         vidImgPath = r'./assets/vid_0.png'
         vidImg = utils.resizeImage(vidImgPath, btnH, btnW)
         vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, command=lambda:
-        threading.Thread(target=self.cam0.showVid).start())
+                           threading.Thread(target=self.cam0.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
         vidBtn.place(relx=btnRelx, rely=0.42, anchor='center')
@@ -363,7 +363,7 @@ class PiCameraGUI(tk.Frame):
         vidImgPath = r'./assets/vid_1.png'
         vidImg = utils.resizeImage(vidImgPath, btnH, btnW)
         vidBtn = tk.Button(self.mainDisplay, relief=tk.GROOVE, command=lambda:
-        threading.Thread(target=self.cam1.showVid).start())
+                           threading.Thread(target=self.cam1.showVid).start())
         vidBtn.image = vidImg
         vidBtn.configure(image=vidImg)
         vidBtn.place(relx=btnRelx, rely=0.87, anchor='center')
