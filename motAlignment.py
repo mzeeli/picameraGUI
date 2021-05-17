@@ -27,7 +27,11 @@ def getFiberMOTDistance(cam0MotImgRaw, cam1MotImgRaw, debug=False):
     """
     given two picamera images calculates relative distance between mot and fiber
 
-    Important: Both images must be in grayscale
+    Important: Both images must be in grayscale. The image ROIs and pixel constants
+    will likely have to change if the cameras are moved or a different resolution 
+    is set to the cameras. Currently the camera is set to a (544,272) with 5 fps 
+    framerate. A strange thing found on the pi was that framerate changes the camera's
+    resolution slightly
 
     :param cam0MotImgRaw: (2D np.array) Raw uncropped grayscale camera 0 mot image
     :param cam1MotImgRaw: (2D np.array) Raw uncropped grayscale camera 1 mot image

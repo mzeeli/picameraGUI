@@ -264,8 +264,8 @@ class PiCameraGUI(tk.Frame):
             time.sleep(0.2)
 
         ## Main camera Displays ##
-        camDispHeight = 272;
-        camDispWidth = 544;
+        camDispHeight = self.cam1.defaultResY;
+        camDispWidth = self.cam1.defaultResX;
 
         cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            width=camDispWidth, height=camDispHeight)
@@ -438,11 +438,13 @@ class PiCameraGUI(tk.Frame):
                 # Capture image to cam0.img
                 # start image capture on separate thread to take image faster
                 cam0Thread = threading.Thread(target=self.cam0.capImgCV2,
-                                              args=(544, 272))
+                                              args=(self.cam1.defaultResX, 
+                                              self.cam1.defaultResY))
                 cam0Thread.start()
 
                 # Capture image to cam1.img
-                self.cam1.capImgCV2(544, 272)
+                self.cam1.capImgCV2(self.cam1.defaultResX, 
+                                    self.cam1.defaultResY)
 
                 cam0Thread.join()  # wait for both images to be captured
 

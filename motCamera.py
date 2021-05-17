@@ -36,6 +36,9 @@ class MOTCamera(picamera.PiCamera):
                       such as shutter speed. Default saved to
                       ./configurations/cameraConfig.json
         color_effects: Controls grayscale
+        self.defaultFramerate: (int) Default framerate
+        defaultResX: (int) Default horizontal camera resolution = 544
+        defaultResY: (int) Default vertical camera resolution = 272
         framerate: (int) Framerate to give to the pi
         grayscale: (bool) Toggles grayscale images on the picamera
         img: (2D np.array) Last image captured with the picamera
@@ -97,9 +100,13 @@ class MOTCamera(picamera.PiCamera):
         configFile = open(r"./configurations/cameraConfig.json", "r")
         cameraConfig = configFile.read()
         self.cameraConfig = json.loads(cameraConfig)
-                
-        self.resolution = (640, 480)
-        self.framerate = int(self.cameraConfig["framerate"])
+        
+        self.defaultResX = 544
+        self.defaultResY = 272
+        self.resolution = (self.defaultResX, self.defaultResY)
+        
+        self.defaultFramerate = int(self.cameraConfig["framerate"])
+        self.framerate = self.defaultFramerate
         self.shutter_speed = int(self.cameraConfig["shutter_speed"])
         
     def capImgCV2(self, resX=640, resY=480):
@@ -160,7 +167,7 @@ class MOTCamera(picamera.PiCamera):
 
         :param label: (tk.Label) Target label to display snapped images
         """
-        self.capImgCV2(544, 272)
+        self.capImgCV2(self.defaultResX, self.defaultResY)
       
         roiLength = motAlignment.lengthROI
         
@@ -190,6 +197,7 @@ class MOTCamera(picamera.PiCamera):
         :param ry: (int) y resolution
         """
         print("Double left click to exit")
+        # Change resolution and framerate to be more readable
         self.resolution = (rx, ry)
         self.framerate = 80
         self.vidOn = True
@@ -216,8 +224,11 @@ class MOTCamera(picamera.PiCamera):
             if not self.vidOn:
                 cv2.waitKey(1)
                 cv2.destroyAllWindows()
-                self.resolution = (544, 272)
-                self.framerate = 5
+                
+                # Reset resolution and framerate before closing
+                self.resolution = (self.defaultResX, self.defaultResY)
+                self.framerate = self.defaultFramerate
+                
                 print("Exiting video view")
                 break
 
@@ -247,8 +258,8 @@ class MOTCamera(picamera.PiCamera):
         if debug:
             print("Press lower case 'q' to exit cv2 image views ")
         
-        self.resolution = (544, 272)
-        img = np.empty((272, 544, 3), dtype=np.uint8)
+        self.resolution = (self.defaultResX, self.defaultResY)
+        img = np.empty((self.defaultResY, self.defaultResX, 3), dtype=np.uint8)
         
         # Start searching for new shutter speed from 20,000 us
         # Need starting value to be high
