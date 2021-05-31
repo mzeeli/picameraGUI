@@ -4,9 +4,24 @@ Script to calculate MOT temperature given a series of absorption images
 The TOF temperature calculation script follows "Measurement of Temperature of
 Atomic Cloud Using Time-of-Flight Technique" by P. Arora et al.
 
-This script is loosely built from Turner Silverthorne's MOTTOF3.py script but
+This script is built from Turner Silverthorne's MOTTOF3.py script but
 for a different setup. I cleaned it up and modified it to fit the raspberry pi
 system.
+
+HOW TO USE:
+Again the general algorithm wasn't written by me but these are some of the key
+points I picked up while using the script:
+
+1. First make sure the ROIs in image_to_sigma are centered correctly
+2. If image is dark make sure the threshold var in image_to_sigma is set to
+lower
+3. The image can't have saturated or 0 DN values in the ROIs
+4. The 2D gaussian in image_to_sigma is a little buggy
+
+5. Previously the script could run with the gaussian fit axis in both x and
+y. However a change was made to use the gravitation constant as calibration,
+so the only allowed axis of calibration is now y because we need the y pos
+of the mot in each frame
 
 
 Last Updated: Summer Term, 2021
@@ -77,6 +92,23 @@ def gaussianRadiiFunc(t, sigma_0, sigma_v):
     return np.sqrt(sigma_0**2 + sigma_v**2 * t**2)
 
 
+def kinematicEqFunc(t, v_i, px2Meter, x0):
+    """
+    Kinematic equation of motion equation
+
+    Can be used to determine a pixel to meter value that corresponds to the
+    camera's depth of field while using a constant gravity 9.81 m/s^2 as a
+    reference.
+
+    :param t: Time [s]
+    :param v_i: Initial velocity [m/s]
+    :param px2Meter: Camera pixel to meter conversion [m/pixel]
+    :param x0: Initial pixel position
+    :return: Position in units of camera pizels
+    """
+    # Note 9.81 is gravitational acceleration
+    return (v_i * t - 0.5 * 9.81 * t ** 2 + x0) / px2Meter
+
 def getTemperature(mass, sigma_v):
     """
     Equation to get temperature of MOT
@@ -101,6 +133,9 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     This function was originally a script written by Turner Silverthorne,
     I didn't change the algorithm, just refactored it and made it modular.
 
+    I'm not too familiar with how the Gauss2D works, only the 1D works
+    reliably in my experience and I've been mostly modifying the 1D
+
     :param imgback: (2D np.array) Background image of just probe laser
     :param imgfore: (2D np.array) Image of MOT with probe laser
 
@@ -108,32 +143,41 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     :param visualflag: (bool) toggles debugging visuals
     :param Gauss2Dflag: (bool) toggles between 1D or 2D gaussian fitting
 
-    :return: (double) Cloud radii sigma_t in units of pixels
+    :return: (double) Cloud radii sigma_t in units of pixels, (int) center
+    position of mot
     """
     # constants
-    fitaxis = 0  # 0: x-axis, 1: y-axis
-    
-    rcropx = 460  # Crop for background intensity comparison, 460
+    fitaxis = 1  # 0: x-axis, 1: y-axis. Must be fit on y-axis to use gravity
+
+    ##############################################################
+    ### ROI for absorption images on Pi
+    rcropx = 930  # Crop for background intensity comparison, 460
     rcropy = 380
     rcropsize = 300  # Half of rcrop square dimension
 
-    cropx = 470  # center x position of the crop square, 470
+    cropx = 930  # center x position of the crop square, 470
     cropy = 380  # center y position of the crop square
     cropsize = 350  # Half of crop square dimension
-    
-    # ~ rcropx = 460  # Crop for background intensity comparison, 460
-    # ~ rcropy = 480
-    # ~ rcropsize = 300  # Half of rcrop square dimension
+    ##############################################################
 
-    # ~ cropx = 470  # center x position of the crop square, 470
-    # ~ cropy = 400  # center y position of the crop square
-    # ~ cropsize = 350  # Half of crop square dimension
+    ##############################################################
+    ### ROI for absorption images from Turner
+    # cropx = 470  # center x position of the crop square
+    # cropy = 400  # center y position of the crop square
+    # cropsize = 350  # Half of crop square dimension
+    #
+    # rcropx = 460  # Crop for background intensity comparison
+    # rcropy = 480
+    # rcropsize = 300  # Half of rcrop square dimension
 
+
+    ##############################################################
     # to be used in offsetting background from MOT image
     # you can tune them if you want, but I usually leave them at 0
     delx = 0
     dely = 0
 
+    ##############################################################
     # Crop the images and take their difference
     imgBackRatioROI = imgback[rcropy - rcropsize:rcropy + rcropsize,
                               rcropx - rcropsize:rcropx + rcropsize]
@@ -169,6 +213,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         pyplot.tight_layout()
         pyplot.show()
 
+    ##############################################################
     # find center of brightness
     # loop to find center of image
     thresh = 15  # Old value was 25
@@ -201,9 +246,8 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
         pyplot.plot(cy, cx, 'bo')
         gray()
         pyplot.gcf()
-
-    # take horizontal and vertical cuts of I_bck - I_mot
-    # and also I_bck
+    ##############################################################
+    # take horizontal and vertical cuts of I_bck - I_mot and also I_bck
     imref_full = np.array(imgback[cropy - cropsize:cropy + cropsize,
                                   cropx - cropsize:cropx + cropsize], 'float')
     if fitaxis == 0:
@@ -217,7 +261,6 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     z = np.zeros(len(samp))
 
     # take log only at pixel values where log is well defined
-
     for i in range(len(samp)):
         if samp[i] / imref_cut[i] < 1 and imref_cut[i] > 0 and samp[i] > 0:
             z[i] = -np.log(1.0000 - samp[i] / imref_cut[i])
@@ -227,6 +270,8 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
     sigma = np.sqrt(sum(z * (x - mean) ** 2) / sum(z))
     ambient = 0.01
 
+    ##############################################################
+    # Perform fitting
     if Gauss2Dflag:
         zz = np.zeros([X, Y])
         for i in range(X):
@@ -251,7 +296,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
                       (np.inf,   X,   Y,   X/2,   np.inf))
 
         popt, pcov = curve_fit(Gauss2D, (xx, yy), zz1d, bounds=boundaries, 
-                               p0=[numpy.amax(zz), cx, cy, sigma, ambient])
+                               p0=[np.amax(zz), cx, cy, sigma, ambient])
 
         # xLinspace = np.linspace(0, X - 1, X)
         # yar = Gauss2D([xLinspace, 520], popt[0], popt[1], popt[2], popt[3],
@@ -291,6 +336,7 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
             pyplot.gcf
             pyplot.show()
 
+    ##############################################################
     # Print final sigma results
     if Gauss2Dflag:
         # print('sigma = {0:.6f},\t popt[3] = {1:.6f}'.format(sigma, popt[3]))
@@ -298,39 +344,70 @@ def image_to_sigma(imgback, imgfore, roiflag=False, visualflag=False,
 
     else:
         # print('sigma = {0:.6f},\t popt[2] = {1:.6f}'.format(sigma, popt[2]))
-        return popt[2]
+        return popt[2], popt[1]  # For 1D also return the center position
 
 
-def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
+def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False, verifyG=False):
     """
     Calculates and returns temperature based on a series of absorption images
 
     :param filelist: (str) List of Image paths
     :param bgImgPath: (str) image path to background image
+
     :param showSigmaFit: (bool) toggles view of pyplot fit
+    :param verifyG: (bool) toggles view gravitational constant verification (
+    note only makes sense if fit axis is 1 (i.e. the y direction)
 
     :return T: (np.float64) temperature of MOT cloud [Kelvin]
     """
 
     sig_ar = np.zeros(len(filelist))  # Array to store the sigma values
     t_ar = np.zeros(len(filelist))  # time array
+    yCenters = np.zeros(len(filelist))  # Y center positions in picture
 
     bgarray = np.array(Image.open(bgImgPath).convert('L'))
 
     for index, filename in enumerate(filelist):
         # Use regex to find time when image was taken
-        fileTime = re.findall(r'\d{2}', filename)[0]
+        fileTime = re.findall(r'\d{2}', filename)[-1]
+        print(f"{fileTime}ms \t {filename}")
         t_ar[index] = float(fileTime)
 
         imgarray = np.array(Image.open(filename).convert('L'))
-        # sig_ar[index] = imageToSigmaE2(bgarray, imgarray, t_ar[index])
-        sig_ar[index] = image_to_sigma(bgarray, imgarray,
-                                       roiflag=False,
-                                       visualflag=True)
+        sig_ar[index], yCenters[index] = image_to_sigma(bgarray, imgarray,
+                                                        roiflag=False,
+                                                        visualflag=False)
 
+    ###########################################################################
+    # Calibrate px2Meter value using gravitational constant
+    print("\n----------------Calibration----------------")
+
+    t_ar *= 1e-3  # convert time to ms
+
+    popt, _ = curve_fit(kinematicEqFunc, t_ar, yCenters)
+    
+    # Fit param #2 of kinematicEqFunc is px2Meter val
+    px2Meter = popt[1]  # Old hard coded val in Turner's script was 13.7e-6
+    print('Pixel to meter conversion: {:0.4e} m/px'.format(px2Meter))
+
+    if verifyG:
+        time_linspace = np.linspace(0, max(t_ar), 1000)
+        yar = kinematicEqFunc(time_linspace, popt[0], popt[1], popt[2])
+
+        pyplot.plot(1000 * t_ar, yCenters, 'ko', ms=5)
+        pyplot.plot(1000 * time_linspace, yar, 'b-', lw=3)
+        pyplot.legend(["Y Center Position", "Kinematic Equation Fit"],
+                      fontsize=16)
+        pyplot.title('')
+        pyplot.xlabel('time [ms]', fontsize=19)
+        pyplot.ylabel('MOT Y Center [px]', fontsize=19)
+        pyplot.xticks(np.arange(0, 26, 2), fontsize=20)
+        pyplot.tight_layout()
+        pyplot.show()
+    ###########################################################################
     # LINEAR REGRESSION/TEMPERATURE OUTPUT STAGE
-    sig_ar *= 13.7 * 10 ** -6  # convert px number to meter
-    t_ar *= 10 ** -3
+    sig_ar *= px2Meter  # convert px number to meter
+
     # Calculate sigma values
     # popt[0] = sigma_o, popt[1] = sigma_v
     popt, pcov = curve_fit(gaussianRadiiFunc, t_ar, sig_ar)  # curve fitting
@@ -342,14 +419,14 @@ def getTempFromImgList(filelist, bgImgPath, showSigmaFit=False):
     ss_res = np.sum(residuals ** 2)
     ss_tot = np.sum((sig_ar - np.mean(sig_ar)) ** 2)
     r_squ = 1 - (ss_res / ss_tot)
-
-    print('Coeff of corr: {0}'.format(r_squ))
+    print("\n----------------Temp----------------")
+    print('Coeff of corr: {:0.4}'.format(r_squ))
 
     # Temperature calculation
     M = cesium.atomicMass
     T = getTemperature(M, sigma_v)
     T_microKelvin = T*1e6
-    print('Temperature: {0} uK'.format(T_microKelvin))
+    print('Temperature: {:0.4} uK'.format(T_microKelvin))
 
     if showSigmaFit:
         # Plot fit results with data points for debugging
@@ -374,8 +451,12 @@ if __name__ == "__main__":
     # imgPaths, bgPath = findImgFiles(r"saved_images/MOT2")
     # imgPaths = imgPaths[:-2]
 
-    imgPaths, bgPath = findImgFiles(r".\test_scripts\images\Temp absorption run 1")
+    # imgPaths, bgPath = findImgFiles(r"C:\Users\Michael\PycharmProjects\picameraGUI\legacy\Absorption images example")
+    # imgPaths = imgPaths[:-3]  # Ignore last couple of images
+
+
+    imgPaths, bgPath = findImgFiles(r"C:\Users\Michael\PycharmProjects\picameraGUI\saved_images\May 18 - Absorption 3")
     imgPaths = imgPaths[:-1]  # Ignore last couple of images
 
 
-    getTempFromImgList(imgPaths, bgPath, showSigmaFit=True)
+    getTempFromImgList(imgPaths, bgPath, showSigmaFit=True, verifyG=True)
