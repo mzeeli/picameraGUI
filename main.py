@@ -9,13 +9,13 @@ Author: Michael Li
 """
 from motCamera import MOTCamera
 from datetime import datetime
-from PIL import ImageTk, Image
 from tkinter import filedialog as fd
 
 import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
 import RPi.GPIO as GPIO
+from thorcam import Thorcam
 
 import threading
 import cv2
@@ -25,6 +25,7 @@ import motAlignment
 import numAtoms
 import utils
 import logTable
+import os
 
 
 class PiCameraGUI(tk.Frame):
@@ -40,6 +41,7 @@ class PiCameraGUI(tk.Frame):
     section of the script
 
     Fields:
+        autoTemp: float temp measured by live automated process
         cam0: MOTCamera class to control cam0 on the raspberry pi
         cam1: MOTCamera class to control cam1 on the raspberry pi
         camOn: Boolean so that the gui can be run even without the cameras attached
@@ -85,9 +87,10 @@ class PiCameraGUI(tk.Frame):
         self.moty = -1  # y position of mot relative to fiber
         self.motz = -1  # z position of mot relative to fiber
 
-        self.temperature = "TBD"  # Temperature
+        self.temperature = "TBD"  # Temperature from absorption images
         self.numAtomsAbs = "TBD"  # Number of atoms calculated by absorption
         self.numAtomsFlo = "TBD"  # Number of atoms calculated by fluorescence
+        self.autoTemp = "TBD"     # Temperature automated method
 
         self.currWin = ""  # keeps track of which view we are currently on
 
@@ -214,38 +217,77 @@ class PiCameraGUI(tk.Frame):
         self.clearMainDisplay()
         self.currWin = "analysis"  # keep track of current window
 
+        #####################################################################
+        # Left side post analysis
+        #####################################################################
         # Set fonts to be used in labels
         lblFont = tkFont.Font(family=self.defaultFont, size=25)
         dataFont = tkFont.Font(family=self.defaultFont, size=30)
 
-        # Todo get real temperature and atom count
-        # Todo create pop up window that allows user to select a bunch of images
-
         # Display temperature data
         tk.Label(self.mainDisplay, text=f'Temperature (K)', font=lblFont) \
-            .place(relx=0.33, rely=0.25, anchor='center')
+            .place(relx=0.25, rely=0.18, anchor='center')
         tempLbl = tk.Label(self.mainDisplay, text=self.temperature,
                            font=dataFont)
-        tempLbl.place(relx=0.33, rely=0.35, anchor='center')
+        tempLbl.place(relx=0.25, rely=0.28, anchor='center')
 
         # Display atom count data
         tk.Label(self.mainDisplay, text=f'#Atoms Abs.', font=lblFont) \
-            .place(relx=0.33, rely=0.65, anchor='center')
+            .place(relx=0.25, rely=0.63, anchor='center')
         numAtomLbl = tk.Label(self.mainDisplay, text=self.numAtomsAbs,
                               font=dataFont)
-        numAtomLbl.place(relx=0.33, rely=0.75, anchor='center')
+        numAtomLbl.place(relx=0.25, rely=0.73, anchor='center')
 
         # button for temperature calculations
         getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
                                text="Calculate Temperature",
                                command=lambda: self.getTemperature(tempLbl))
-        getTempBtn.place(relx=0.8, rely=0.3, anchor='center')
+        getTempBtn.place(relx=0.25, rely=0.4, anchor='center')
 
         # button for absorption based #atoms calculations
         getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
                                text="Get #Atoms by Absorption",
                                command=lambda: self.getNumAtomsAbs(numAtomLbl))
-        getTempBtn.place(relx=0.8, rely=0.7, anchor='center')
+        getTempBtn.place(relx=0.25, rely=0.85, anchor='center')
+
+        #####################################################################
+        # Right side Automated temperature
+        #####################################################################
+        # Create black line to separate left and right side
+        separator = tk.Frame(master=self.mainDisplay,
+                             height=10000, width=2,
+                             highlightbackground="black",
+                             highlightthicknes=1)
+        separator.place(relx=0.5, rely=0, anchor='center')
+
+        tk.Label(self.mainDisplay, text='Automated Temp', font=lblFont) \
+            .place(relx=0.75, rely=0.28, anchor='center')
+
+        # Droplist for number of images to capture with thorcam
+        # note every image is ~2ms increment in time
+        tk.Label(self.mainDisplay, text='#Images', font=lblFont) \
+            .place(relx=0.55, rely=0.45, anchor='w')
+
+        options = [i for i in range(1, 16)]
+        drpOptions = tk.StringVar(self.mainDisplay)
+        drpOptions.set(options[9])  # Default set to take 10 images
+        numImgDrp = tk.OptionMenu(self.mainDisplay, drpOptions, *options)
+        numImgDrp.config(width=6, font=(self.defaultFont, 20))
+        numImgDrp.place(relx=0.77, rely=0.45, anchor='w')
+
+        # Results label
+        autoTempLbl = tk.Label(self.mainDisplay, text=self.autoTemp,
+                              font=dataFont)
+        autoTempLbl.place(relx=0.75, rely=0.75, anchor='center')
+
+        # Start automated temp button
+        autoTempBtn = tk.Button(self.mainDisplay, height=2, width=40,
+                                text="Start Auto Temp",
+                                command=lambda:
+                                self.startAutoTemp(drpOptions, autoTempLbl))
+
+        autoTempBtn.place(relx=0.75, rely=0.6, anchor='center')
+
 
     def showCameraWin(self):
         """
@@ -583,6 +625,70 @@ class PiCameraGUI(tk.Frame):
             self.logAction("Cancelled #Atom calc. Incorrect file selection")
             numAtomsLbl.configure(text="Invalid Selection")
             return
+
+    def startAutoTemp(self, numImgs, dispLbl):
+        """
+        Start automatic temperature calculation process
+
+        Function used to start automated temperature calculations. This is
+        different from getTemperature. This function uses thorcams to take
+        a series of hardware triggered images and then runs temp calculation
+        on them. Meanwhile getTemperature allows the user to calculate
+        temperature from images that were already taken.
+
+        :param numImgs: (tkinter.StringVar) var to track #pictures from GUI
+        :param dispLbl: (tkinter.Label) lable to display temp data on
+
+        :return:
+        """
+        numImgs = int(numImgs.get())
+
+        # Get timestamp and create save directory
+        timestamp = utils.getTimestamp()
+        saveDir = f'./saved_images/abs_{timestamp}'
+        os.mkdir(saveDir)
+
+        #####################################################################
+        # Thorcam steps
+        #####################################################################
+        # initiate thorcam with long timeout
+        cam = Thorcam(1, trigTimeout=100000)
+
+        # Capture images
+        for i in range(2, numImgs*2, 2):
+            print(f"----{i}ms----")
+            print("Waiting")
+
+            # Capture image
+            # ~ img = cam1.capImgNow()
+            img = cam.enableHardwareTrig()
+
+            cv2.imshow(f"{i}ms, press 'q' to exit", img)
+            cv2.imwrite(f"./saved_images/{timestamp}/{i}ms.jpg", img)
+
+            key = cv2.waitKey(0)
+            if key == ord('q'):
+                print("Exciting capture loop")
+                break
+
+            cv2.destroyAllWindows()
+
+        cam.close()  # Close camera to release resource
+
+        #####################################################################
+        # Temp analysis steps
+        #####################################################################
+        imgPaths, bgPath = motTemperature.findImgFiles(saveDir)
+        imgPaths = imgPaths[:-1]  # Ignore last couple of images (arbituary)
+
+        T = motTemperature.getTempFromImgList(imgPaths, bgPath,
+                                                 showSigmaFit=True,
+                                                 verifyG=True)
+
+        self.autoTemp = "{0:.4e} K".format(T)
+        self.logAction(f"Auto Temperature measured: {self.autoTemp}")
+
+        dispLbl.configure(text=self.autoTemp)
 
     def setShutterSpeed(self, ssLbl, ss):
         """
