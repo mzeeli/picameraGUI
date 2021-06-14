@@ -455,7 +455,7 @@ if __name__ == "__main__":
     # imgPaths = imgPaths[:-3]  # Ignore last couple of images
 
 
-    imgPaths, bgPath = findImgFiles(r"C:\Users\Michael\PycharmProjects\picameraGUI\saved_images\May 18 - Absorption 3")
+    imgPaths, bgPath = findImgFiles(r"/home/pi/Desktop/picameraGUI/test_scripts/images/May 18 - Absorption 3")
     imgPaths = imgPaths[:-1]  # Ignore last couple of images
 
 

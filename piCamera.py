@@ -18,11 +18,13 @@ import cv2
 import numpy as np
 import json
 import io
+import threading
+
 
 import motAlignment
 
 
-class MOTCamera(picamera.PiCamera):
+class PiCamera(picamera.PiCamera):
     """
     The MOTCamera class is a wrapper for the PiCamera class for ease of
     access with the Pi Camera GUI. It is a child of the PiCamera class made by
@@ -210,7 +212,7 @@ class MOTCamera(picamera.PiCamera):
             
             # Take first dimension as grayscale
             if self.grayscale:
-                image = image[:, :, 1]
+                image = image[100:350, 150:500, 1]
             
             
             cv2.imshow(self.windowName, image)
@@ -350,14 +352,10 @@ if __name__ == "__main__":
     # io stream tests
     #################################################
     cam1 = MOTCamera(0)
-    stream = io.BytesIO()
+    cam1.shutter_speed = 3000
     
-    # ~ cam1.start_preview()
-    time.time.sleep(2)
-    cam1.capture(stream, format="jpeg")
+    cam0 = MOTCamera(1)
+    cam0.shutter_speed = 3000
     
-    data = np.frombuffer(stream.getvalue(), dtype=np.uint8)
-    img = cv2.imdecode(data, 0)
-    print(np.shape(img))
-    cv2.imshow("img", img)
-    cv2.waitKey(0)
+    threading.Thread(target=cam0.showVid).start()
+    threading.Thread(target=cam1.showVid).start()

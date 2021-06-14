@@ -20,9 +20,9 @@ import cv2
 from matplotlib import pyplot
 from PIL import Image
 from cesium import Cesium
-from motCamera import MOTCamera
-cs = Cesium()
+from piCamera import PiCamera
 
+cs = Cesium()
 
 def imgavr(filelist, y):
     """
@@ -156,7 +156,7 @@ def numAtomsAbs(motImgPath, probeImgPath, bgImgPath, y=600):
     probeimg = cv2.imread(probeImgPath[0], 0)
     bgimg = cv2.imread(bgImgPath[0], 0)
     
-    # Crop
+    # Crop [280:390, 340:480]
     MOTimg = MOTimg[290:390, 250:400]
     probeimg = probeimg[290:390, 250:400]
     bgimg = bgimg[290:390, 250:400]
@@ -276,5 +276,19 @@ if __name__ == "__main__":
     # bgImgPath = ['legacy/Absorption images example/bg.png']
     # n = numAtomsAbs(motImgPath, probeImgPath, bgImgPath)
     # print(n)
-
-    cesium = Cesium()
+    
+    # May 15 [290:390, 250:400]
+    motImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/20210512_absorption run1/02ms.jpg']
+    probeImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/20210512_absorption run1/background.jpg']
+    bgImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/20210512_absorption run1/bg.jpg']
+    n = numAtomsAbs(motImgPath, probeImgPath, bgImgPath)
+    print(n)
+    
+    
+    
+    # May 18 [280:390, 340:480]
+    # ~ motImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/images/May 18 - Absorption 1/02ms.jpg']
+    # ~ probeImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/images/May 18 - Absorption 1/background.jpg']
+    # ~ bgImgPath = [r'/home/pi/Desktop/picameraGUI/test_scripts/images/May 18 - Absorption 1/bg.jpg']
+    # ~ n = numAtomsAbs(motImgPath, probeImgPath, bgImgPath)
+    # ~ print(n)

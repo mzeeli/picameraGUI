@@ -7,7 +7,8 @@ Provides functionality to measure alignment, #atoms, temperature.
 Last Updated: Summer Term, 2021
 Author: Michael Li
 """
-from motCamera import MOTCamera
+from piCamera import PiCamera
+from thorcam import Thorcam
 from datetime import datetime
 from tkinter import filedialog as fd
 
@@ -15,7 +16,6 @@ import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
 import RPi.GPIO as GPIO
-from thorcam import Thorcam
 
 import threading
 import cv2
@@ -33,7 +33,7 @@ class PiCameraGUI(tk.Frame):
     Main GUI class for dual picamera system functionalities
 
     Uses tkinter to create a gui for the dual picamera system. The gui consists of
-    5 main views ["Alignment", "Analysis", "Camera VIew", "3D View" and "Log View"].
+    5 main views ["Alignment", "Absorption", "Pi Camera", "3D View" and "Log View"].
     Each of these 5 views are handled independently by a show{viewName} method and
     chosen by the navigation toolbar created by the createNavigationBtn method
 
@@ -41,9 +41,8 @@ class PiCameraGUI(tk.Frame):
     section of the script
 
     Fields:
-        autoTemp: float temp measured by live automated process
-        cam0: MOTCamera class to control cam0 on the raspberry pi
-        cam1: MOTCamera class to control cam1 on the raspberry pi
+        cam0: PiCamera class to control cam0 on the raspberry pi
+        cam1: PiCamera class to control cam1 on the raspberry pi
         camOn: Boolean so that the gui can be run even without the cameras attached
         currWin: str to keep track of which of the 5 views we are currently on
         debug: Boolean to enable debugging mode for the GUI
@@ -96,9 +95,12 @@ class PiCameraGUI(tk.Frame):
 
         if camOn:
             # Pi compute module assigns cam0 port as numerical value 1
-            self.cam0 = MOTCamera(1, grayscale=True)
-            self.cam1 = MOTCamera(0, grayscale=True)
+            self.cam0 = PiCamera(1, grayscale=True)
+            self.cam1 = PiCamera(0, grayscale=True)
+            
+            print("Camera Init Successful")
 
+        # Create child class of tk.Frame
         tk.Frame.__init__(self, master)
 
         # Create main panel and show
@@ -133,11 +135,11 @@ class PiCameraGUI(tk.Frame):
                                  font=btnFonts, command=self.showAlignmentWin)
         alignmentBtn.place(x=0, y=0, height=btnHeight, width=btnWidth)
 
-        analysisBtn = tk.Button(navigationFrame, text='Analysis',
-                                font=btnFonts, command=self.showAnalysisWin)
-        analysisBtn.place(x=btnWidth, y=0, height=btnHeight, width=btnWidth)
+        absorptionBtn = tk.Button(navigationFrame, text='Absorption',
+                                font=btnFonts, command=self.showAbsorptionWin)
+        absorptionBtn.place(x=btnWidth, y=0, height=btnHeight, width=btnWidth)
 
-        cameraBtn = tk.Button(navigationFrame, text='Camera View',
+        cameraBtn = tk.Button(navigationFrame, text='Pi Camera',
                               font=btnFonts, command=self.showCameraWin)
         cameraBtn.place(x=btnWidth * 2, y=0, height=btnHeight, width=btnWidth)
 
@@ -205,9 +207,9 @@ class PiCameraGUI(tk.Frame):
                               command=lambda: posThread.start())
         getPosBtn.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
 
-    def showAnalysisWin(self):
+    def showAbsorptionWin(self):
         """
-        Creates widgets associated with the Analysis window.
+        Creates widgets associated with the Absorption window.
 
         This window is used to calculate temperature and #Atoms by absorption,
         it will not reflect real-time data like the other windows. The data
@@ -215,7 +217,7 @@ class PiCameraGUI(tk.Frame):
         photos
         """
         self.clearMainDisplay()
-        self.currWin = "analysis"  # keep track of current window
+        self.currWin = "absorption"  # keep track of current window
 
         #####################################################################
         # Left side post analysis
@@ -238,16 +240,18 @@ class PiCameraGUI(tk.Frame):
                               font=dataFont)
         numAtomLbl.place(relx=0.25, rely=0.73, anchor='center')
 
-        # button for temperature calculations
+        # Button for temperature calculations
         getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
                                text="Calculate Temperature",
                                command=lambda: self.getTemperature(tempLbl))
         getTempBtn.place(relx=0.25, rely=0.4, anchor='center')
 
-        # button for absorption based #atoms calculations
+
+        # Button for absorption based #atoms calculations
         getTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
                                text="Get #Atoms by Absorption",
                                command=lambda: self.getNumAtomsAbs(numAtomLbl))
+                               
         getTempBtn.place(relx=0.25, rely=0.85, anchor='center')
 
         #####################################################################
@@ -303,6 +307,7 @@ class PiCameraGUI(tk.Frame):
         while threading.active_count() != 1:
             time.sleep(0.2)
 
+
         ## Main camera Displays ##
         camDispHeight = self.cam1.defaultResY
         camDispWidth = self.cam1.defaultResX
@@ -310,22 +315,16 @@ class PiCameraGUI(tk.Frame):
         cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            width=camDispWidth, height=camDispHeight)
         cam0Lbl.place(x=40, y=25)
-        # Snap an image upon opening camera view window and display it on cam0 label
+        # Snap an image upon opening pi camera window and display it on cam0 label
         threading.Thread(target=lambda: self.cam0.showImgOnLbl(cam0Lbl)).start()
 
         cam1Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            height=camDispHeight, width=camDispWidth)
         cam1Lbl.place(x=40, y=300)
-        # Snap an image upon opening camera view window and display it on cam1 label
+        # Snap an image upon opening pi camera window and display it on cam1 label
         threading.Thread(target=lambda: self.cam1.showImgOnLbl(cam1Lbl)).start()
 
         ## Camera Labels ##
-        btnRelx = 0.868
-        distY = 60
-        lblOffset = 0.08
-        btnH = 60
-        btnW = 65
-
         camFont = tkFont.Font(family=self.defaultFont, size=13)
         tk.Label(self.mainDisplay, text='cam0', font=camFont, bg='gray83') \
             .place(x=41, y=26)
@@ -333,6 +332,12 @@ class PiCameraGUI(tk.Frame):
             .place(x=41, y=301)
 
         ## Shutter Speed Tuning ##
+        btnRelx = 0.868
+        distY = 60
+        lblOffset = 0.08
+        btnH = 60
+        btnW = 65
+        
         # Todo add text box for direct ss change
         # Create shutter speed frame
         ssFrame = tk.Frame(master=self.mainDisplay,
@@ -451,8 +456,8 @@ class PiCameraGUI(tk.Frame):
         :param nLbl: (tk.Label) Label to display number of atoms
         :param canvas: (tk.Canvas) Canvas used to draw cartesian coordinates of MOT
 
-        :param imgXSize: (int) image width, should match labels size in camera view
-        :param imgYSize: (int) image height, should match labels size in camera view
+        :param imgXSize: (int) image width, should match labels size in pi camera
+        :param imgYSize: (int) image height, should match labels size in pi camera
 
         """
         # calculations

@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 
 # ROIs for when both cameras are in front
 # Determined these values just based on trial and error
-cam0xROI = 258
+cam0xROI = 250
 cam0yROI = 155
-cam1xROI = 210
+cam1xROI = 218
 cam1yROI = 160
 lengthROI = 40
 

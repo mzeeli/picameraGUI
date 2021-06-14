@@ -88,7 +88,17 @@ class Thorcam():
         ret = ueye.is_SetImageMem(self.hCam, self.mem_ptr, self.mem_id)
         self.lineinc = self.width * int((self.nBitsPerPixel + 7) / 8)
 
-    def setExposureTime(self, newExpTime, debug=False):
+    def getExposureTime(self):
+        """
+        retrieves camera exposure time
+		
+        :return: (ueye.double) Exposure time in ms
+        """
+        exposureTime = ueye.double()
+        nRet = ueye.is_Exposure(hCam, ueye.IS_EXPOSURE_CMD_GET_EXPOSURE, time_output, 8)
+        return exposureTime
+
+    def setExposureTime(self, newExpTime, debug=False, dumpImage=True):
         """
         Sets a new exposure time for the thorcam
 
@@ -97,8 +107,9 @@ class Thorcam():
         exposure time, so a work around is to throw away the first image everytime
         when setting a new one
 
-        :param newExpTime: New exposure time [ms]
-        :param debug: debugging flag
+        :param newExpTime: (float) New exposure time [ms]
+        :param debug: (bool) debugging flag
+        :param dumpImage: (bool) whether or not to throw out first image
         """
         # Set exposure time
         time_input = ueye.double(newExpTime)
@@ -108,7 +119,8 @@ class Thorcam():
             print("is_Exposure Input ERROR")
 
         # Instantly take image and dump it, see docstring
-        self.capImgNow()
+        if dumpImage:
+            self.capImgNow()
 
         if debug:
             # get exposure time range
@@ -162,6 +174,19 @@ class Thorcam():
         img = np.reshape(img, (self.height, self.width, 3))
         return img
 
+    def showVid(self):		
+        while True:
+            # Capture image via hardware trigger
+            img = self.capImgNow()
+
+            cv2.imshow("Thorcam, press 'q' to exit absorption imaging", img)
+            key = cv2.waitKey(1)
+            
+            if key == ord('q'):
+                print("Exit capture loop")
+                break
+        cv2.destroyAllWindows()
+            
     def enableHardwareTrig(self) -> np.array:
         """
         Starts hardware trigger for thorcam. Program waits on line
@@ -181,6 +206,76 @@ class Thorcam():
         img = np.reshape(img, (self.height, self.width, 3))
         return img
 
+
+    def startAbsorptionImaging(self):
+		# Todo confirm with Paul what timings we should look for 
+		# 100 here is extermely high, don't expect to get > 30
+        for i in range(2, 100, 2):
+            print(f"----{i}ms----")
+            print("Waiting")
+
+            # Capture image via hardware trigger
+            img = self.enableHardwareTrig()
+
+            cv2.imshow(f"{i}ms, press 'q' to exit absorption imaging", img)
+            cv2.imwrite(f"./images/{i}ms.jpg", img)
+
+            key = cv2.waitKey(0)
+            if key == ord('q'):
+                print("Exit capture loop")
+                break
+
+            cv2.destroyAllWindows()
+
+    def capVideo():
+        # Activates the camera's live video mode (free run mode)
+        nRet = ueye.is_CaptureVideo(hCam, ueye.IS_WAIT)
+        if nRet != ueye.IS_SUCCESS:
+            print("is_CaptureVideo ERROR")
+
+        # Enables the queue mode for existing image memory sequences
+        nRet = ueye.is_InquireImageMem(hCam, pcImageMemory, MemID, width, height, nBitsPerPixel, pitch)
+        if nRet != ueye.IS_SUCCESS:
+            print("is_InquireImageMem ERROR")
+        else:
+            print("Press q to leave the programm")
+
+        #---------------------------------------------------------------------------------------------------------------------------------------
+        # Single Image Capture
+        while(nRet == ueye.IS_SUCCESS):            
+            # In order to display the image in an OpenCV window we need to...
+            # ...extract the data of our image memory
+            array = ueye.get_data(pcImageMemory, width, height, nBitsPerPixel, pitch, copy=False)
+
+            bytes_per_pixel = int(nBitsPerPixel / 8)
+            
+            # ...reshape it in an numpy array...
+            frame = np.reshape(array,(height.value, width.value, bytes_per_pixel))
+            # # ...resize the image by a half
+            frame = cv2.resize(frame,(0,0),fx=0.5, fy=0.5)
+                        #---------------------------------------------------------------------------------------------------------------------------------------
+                #Include image data processing here
+                #---------------------------------------------------------------------------------------------------------------------------------------
+                #     #...and finally display it
+            
+            cv2.imshow("Thorcam", frame)
+            key = cv2.waitKey(0)
+            
+            # Press q if you want to end the loop
+            if key == ord('q'):
+               break
+       
+        # #---------------------------------------------------------------------------------------------------------------------------------------
+        # Releases an image memory that was allocated using is_AllocImageMem() and removes it from the driver management
+        ueye.is_FreeImageMem(hCam, pcImageMemory, MemID)
+
+        # Disables the hCam camera handle and releases the data structures and memory areas taken up by the uEye camera
+        ueye.is_ExitCamera(hCam)
+
+        # # Destroys the OpenCv windows
+        cv2.destroyAllWindows()
+
+
     def close(self):
         # Release camera resource
         ret = ueye.is_ExitCamera(self.hCam)
@@ -189,16 +284,7 @@ class Thorcam():
 if __name__ == "__main__":
     # When done with the camera you must perform a thorcam.close(),
     # otherwise the script will hang at the end
-    cam1 = Thorcam(1)
-    cam2 = Thorcam(2)
-
-    # Test software image capture
-    img1 = cam1.capImgNow()
-    img2 = cam2.capImgNow()
-    cv2.imshow("img1", img1)
-    cv2.imshow("img2", img2)
-    cv2.waitKey(0)
-    print("Done")
+    cam1 = Thorcam(2)
+    cam1.showVid()
 
     cam1.close()
-    cam2.close()
