@@ -299,15 +299,13 @@ class PiCameraGUI(tk.Frame):
         self.clearMainDisplay()
         self.currWin = "camera"  # keep track of current window
 
-        # Wait for camera resource to close on other threads, if BNC 
-        # checking thread is also running it should be != 2, as you have 
-        # the main gui thread and the BNC thread
+        # Wait for camera resource to close on other threads
         while threading.active_count() != 1:
             time.sleep(0.2)
 
         ## Main camera Displays ##
-        camDispHeight = self.cam1.defaultResY;
-        camDispWidth = self.cam1.defaultResX;
+        camDispHeight = self.cam1.defaultResY
+        camDispWidth = self.cam1.defaultResX
 
         cam0Lbl = tk.Label(self.mainDisplay, bd=1, relief='solid',
                            width=camDispWidth, height=camDispHeight)
@@ -641,11 +639,11 @@ class PiCameraGUI(tk.Frame):
 
         :return:
         """
-        numImgs = int(numImgs.get())
+        numImgs = int(numImgs.get())  # convert to int
 
         # Get timestamp and create save directory
         timestamp = utils.getTimestamp()
-        saveDir = f'./saved_images/abs_{timestamp}'
+        saveDir = f'./{self.output}/abs_{timestamp}'
         os.mkdir(saveDir)
 
         #####################################################################
@@ -660,11 +658,11 @@ class PiCameraGUI(tk.Frame):
             print("Waiting")
 
             # Capture image
-            # ~ img = cam1.capImgNow()
+            # ~ img = cam.capImgNow()
             img = cam.enableHardwareTrig()
 
             cv2.imshow(f"{i}ms, press 'q' to exit", img)
-            cv2.imwrite(f"./saved_images/{timestamp}/{i}ms.jpg", img)
+            cv2.imwrite(f"{saveDir}/{i}ms.jpg", img)
 
             key = cv2.waitKey(0)
             if key == ord('q'):
@@ -682,8 +680,8 @@ class PiCameraGUI(tk.Frame):
         imgPaths = imgPaths[:-1]  # Ignore last couple of images (arbituary)
 
         T = motTemperature.getTempFromImgList(imgPaths, bgPath,
-                                                 showSigmaFit=True,
-                                                 verifyG=True)
+                                              showSigmaFit=True,
+                                              verifyG=True)
 
         self.autoTemp = "{0:.4e} K".format(T)
         self.logAction(f"Auto Temperature measured: {self.autoTemp}")
