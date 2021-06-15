@@ -59,6 +59,7 @@ class PiCameraGUI(tk.Frame):
         numAtomsFlo: float #atoms measured by fluorescent imaging
         output: filepath to save all data (images, txt files)
         temperature: float temp measured by absorption imaging
+        thorcamID: ID used to connect to thorcam, can be verified in idsmanager
     """
     def __init__(self, master, output=r"./saved_images", debug=False,
                  camOn=True):
@@ -93,11 +94,11 @@ class PiCameraGUI(tk.Frame):
 
         self.currWin = ""  # keeps track of which view we are currently on
 
+        self.thorcamID = 1
         if camOn:
             # Pi compute module assigns cam0 port as numerical value 1
             self.cam0 = PiCamera(1, grayscale=True)
             self.cam1 = PiCamera(0, grayscale=True)
-            
             print("Camera Init Successful")
 
         # Create child class of tk.Frame
@@ -663,6 +664,7 @@ class PiCameraGUI(tk.Frame):
 
         :param numImgs: (tkinter.StringVar) var to track #pictures from GUI
         :param dispLbl: (tkinter.Label) lable to display temp data on
+        :param expScale: (tkinter.scale) thorcam exposure time scale
 
         :return:
         """
@@ -678,7 +680,7 @@ class PiCameraGUI(tk.Frame):
         # Thorcam steps
         #####################################################################
         # initiate thorcam with long timeout
-        cam = Thorcam(1, trigTimeout=100000)
+        cam = Thorcam(self.thorcamID, trigTimeout=100000)
         cam.setExposureTime(exposureTime)
 
         # Capture images
@@ -718,8 +720,14 @@ class PiCameraGUI(tk.Frame):
         dispLbl.configure(text=self.autoTemp)
 
     def testThorTrigger(self, expScale):
+        """
+        Take a single hardware triggered image with the thorcam
+
+        :param expScale: (tkinter.scale) thorcam exposure time scale
+        :return:
+        """
         exposureTime = expScale.get()
-        cam = Thorcam(1, trigTimeout=100000)
+        cam = Thorcam(self.thorcamID, trigTimeout=100000)
         cam.setExposureTime(exposureTime)
         print("Waiting for hardware trigger")    
         img = cam.enableHardwareTrig()
@@ -730,8 +738,14 @@ class PiCameraGUI(tk.Frame):
 
 
     def testThorcam(self, expScale):
+        """
+        Take a single image with the thorcam asap
+
+        :param expScale: (tkinter.scale) thorcam exposure time scale
+        :return:
+        """
         exposureTime = expScale.get()
-        cam = Thorcam(1, trigTimeout=100000)
+        cam = Thorcam(self.thorcamID, trigTimeout=100000)
         cam.setExposureTime(exposureTime)    
         img = cam.capImgNow()
         cv2.imshow(f"Thorcam", img)
