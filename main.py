@@ -255,7 +255,7 @@ class PiCameraGUI(tk.Frame):
         getTempBtn.place(relx=0.25, rely=0.85, anchor='center')
 
         #####################################################################
-        # Right side Automated temperature
+        # Right side automated temperature
         #####################################################################
         # Create black line to separate left and right side
         separator = tk.Frame(master=self.mainDisplay,
@@ -265,33 +265,55 @@ class PiCameraGUI(tk.Frame):
         separator.place(relx=0.5, rely=0, anchor='center')
 
         tk.Label(self.mainDisplay, text='Automated Temp', font=lblFont) \
-            .place(relx=0.75, rely=0.28, anchor='center')
+            .place(relx=0.75, rely=0.18, anchor='center')
+
+        # Slider for exposure time
+        tk.Label(self.mainDisplay, text='Exp(ms)', font=lblFont) \
+            .place(relx=0.55, rely=0.3, anchor='w')
+            
+        expScale = tk.Scale(self.mainDisplay, from_=0, to=5,
+                            orient=tk.HORIZONTAL, length=153,
+                            resolution=0.01)
+        expScale.set(0.02)
+        expScale.place(relx=0.77, rely=0.28, anchor='w')
 
         # Droplist for number of images to capture with thorcam
         # note every image is ~2ms increment in time
         tk.Label(self.mainDisplay, text='#Images', font=lblFont) \
-            .place(relx=0.55, rely=0.45, anchor='w')
+            .place(relx=0.55, rely=0.4, anchor='w')
 
         options = [i for i in range(1, 16)]
         drpOptions = tk.StringVar(self.mainDisplay)
         drpOptions.set(options[9])  # Default set to take 10 images
         numImgDrp = tk.OptionMenu(self.mainDisplay, drpOptions, *options)
-        numImgDrp.config(width=6, font=(self.defaultFont, 20))
-        numImgDrp.place(relx=0.77, rely=0.45, anchor='w')
+        numImgDrp.config(width=7, font=(self.defaultFont, 20))
+        numImgDrp.place(relx=0.77, rely=0.4, anchor='w')
 
         # Results label
         autoTempLbl = tk.Label(self.mainDisplay, text=self.autoTemp,
                               font=dataFont)
-        autoTempLbl.place(relx=0.75, rely=0.75, anchor='center')
+        autoTempLbl.place(relx=0.75, rely=0.7, anchor='center')
 
         # Start automated temp button
-        autoTempBtn = tk.Button(self.mainDisplay, height=2, width=40,
+        autoTempBtn = tk.Button(self.mainDisplay, height=2, width=30,
                                 text="Start Auto Temp",
-                                command=lambda:
-                                self.startAutoTemp(drpOptions, autoTempLbl))
+                                command=lambda: self.startAutoTemp(
+                                drpOptions, autoTempLbl, expScale))
 
-        autoTempBtn.place(relx=0.75, rely=0.6, anchor='center')
-
+        autoTempBtn.place(relx=0.75, rely=0.55, anchor='center')
+        
+        
+        # Camera test buttons
+        testTrigBtn = tk.Button(self.mainDisplay, height=2, width=15,
+                                text="Test Trigger", command=lambda: 
+                                self.testThorTrigger(expScale))
+        testTrigBtn.place(relx=0.64, rely=0.85, anchor='center')
+        
+        testThorcamBtn = tk.Button(self.mainDisplay, height=2, width=15,
+                                   text="Test Thorcam", command=lambda: 
+                                self.testThorcam(expScale))
+        testThorcamBtn.place(relx=0.86, rely=0.85, anchor='center')
+        
 
     def showCameraWin(self):
         """
@@ -629,7 +651,7 @@ class PiCameraGUI(tk.Frame):
             numAtomsLbl.configure(text="Invalid Selection")
             return
 
-    def startAutoTemp(self, numImgs, dispLbl):
+    def startAutoTemp(self, numImgs, dispLbl, expScale):
         """
         Start automatic temperature calculation process
 
@@ -644,6 +666,7 @@ class PiCameraGUI(tk.Frame):
 
         :return:
         """
+        exposureTime = expScale.get()
         numImgs = int(numImgs.get())  # convert to int
 
         # Get timestamp and create save directory
@@ -656,6 +679,7 @@ class PiCameraGUI(tk.Frame):
         #####################################################################
         # initiate thorcam with long timeout
         cam = Thorcam(1, trigTimeout=100000)
+        cam.setExposureTime(exposureTime)
 
         # Capture images
         for i in range(2, numImgs*2, 2):
@@ -692,6 +716,28 @@ class PiCameraGUI(tk.Frame):
         self.logAction(f"Auto Temperature measured: {self.autoTemp}")
 
         dispLbl.configure(text=self.autoTemp)
+
+    def testThorTrigger(self, expScale):
+        exposureTime = expScale.get()
+        cam = Thorcam(1, trigTimeout=100000)
+        cam.setExposureTime(exposureTime)
+        print("Waiting for hardware trigger")    
+        img = cam.enableHardwareTrig()
+        cv2.imshow(f"Thorcam", img)
+        cv2.waitKey(5000)
+        cv2.destroyAllWindows()
+        cam.close()
+
+
+    def testThorcam(self, expScale):
+        exposureTime = expScale.get()
+        cam = Thorcam(1, trigTimeout=100000)
+        cam.setExposureTime(exposureTime)    
+        img = cam.capImgNow()
+        cv2.imshow(f"Thorcam", img)
+        cv2.waitKey(5000)
+        cv2.destroyAllWindows()
+        cam.close()
 
     def setShutterSpeed(self, ssLbl, ss):
         """
